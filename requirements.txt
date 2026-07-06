@@ -8,3 +8,11 @@ google-genai>=0.1.0
 reportlab>=4.0.0
 python-dotenv>=1.0.0
 PySide6-Fluent-Widgets>=1.0.0
+
+# --- Nuevas dependencias del sidecar Electron (front nuevo) ---
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+bcrypt>=4.0.0
+# Opcionales: solo necesarias para el Asesor VUCE (RAG legal). El sidecar arranca sin ellas.
+sentence-transformers>=2.2.0
+faiss-cpu>=1.7.4

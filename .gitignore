@@ -1,0 +1,10 @@
+# Dependencias de Node (Electron) — nunca se versionan
+node_modules/
+# Cachés de Python
+__pycache__/
+*.pyc
+# Entornos virtuales
+.venv/
+venv/
+# Artefactos varios
+*.log

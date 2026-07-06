@@ -1,0 +1,12 @@
+{
+  "name": "logiia-frontend",
+  "version": "1.0.0",
+  "description": "Front-end Electron de LogiIA (dashboard logistico aduanero)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^31.0.0"
+  }
+}
