@@ -1,0 +1,185 @@
+/* styles.css — Tema, layout y motion de LogiIA. Paleta "puerto al atardecer". */
+
+/* Fuente Manrope empaquetada local (con respaldo del sistema si no se descargo el woff2). */
+@font-face {
+  font-family: 'Manrope';                         /* nombre logico de la fuente */
+  src: url('assets/Manrope.woff2') format('woff2');/* archivo local */
+  font-weight: 200 800;                            /* rango variable de grosores */
+  font-display: swap;                              /* muestra texto de inmediato con la de respaldo */
+}
+
+/* Tokens de color y forma (constantes reutilizables en toda la app). */
+:root {
+  --bg-0:#161311; --bg-1:#1E1A17; --bg-2:#26211D; --sidebar:#100E0C;  /* lienzo oscuro calido */
+  --ambar:#F4C77B; --durazno:#F3A87C; --terracota:#E68A6C;            /* acentos calidos */
+  --teal:#84D2C5; --petroleo:#5FB3AE; --salvia:#AEC99C;               /* frio maritimo / exito */
+  --tinta:#F5EEE4; --tinta-suave:#B9AC9B; --linea:#3A332D;            /* texto y bordes */
+  --r-card:22px; --r-pill:999px;                                      /* radios */
+  --glass: rgba(38,33,29,0.55);                                       /* fondo semitransparente de tarjetas */
+}
+
+/* Reset basico y tipografia global. */
+* { box-sizing:border-box; margin:0; padding:0; }  /* modelo de caja uniforme */
+html, body { height:100%; }                        /* ocupar toda la ventana */
+body {
+  font-family:'Manrope', system-ui, 'Segoe UI', sans-serif; /* fuente principal + respaldos */
+  color:var(--tinta);                              /* color de texto por defecto */
+  background:var(--bg-0);                          /* fondo base */
+  overflow:hidden;                                 /* la app maneja su propio scroll interno */
+}
+
+/* Canvas de fondo: cubre toda la ventana, detras de todo. */
+#fondo { position:fixed; inset:0; z-index:0; }     /* fijo, ocupando todo, en la capa mas baja */
+
+/* Utilidad para ocultar elementos sin quitarlos del DOM. */
+.oculto { display:none !important; }               /* se usa para el splash y la app */
+
+/* ---------- SPLASH ---------- */
+#splash {
+  position:fixed; inset:0; z-index:10;             /* sobre todo lo demas */
+  display:flex; flex-direction:column;             /* columna centrada */
+  align-items:center; justify-content:center; gap:18px; /* centrado con separacion */
+}
+.splash-logo { font-size:44px; font-weight:800; letter-spacing:2px; color:var(--ambar); } /* marca */
+.splash-msg { color:var(--tinta-suave); }          /* mensaje de estado */
+.splash-glow {                                     /* halo calido que respira detras del logo */
+  position:absolute; width:340px; height:340px; border-radius:50%;
+  background:radial-gradient(circle, rgba(244,199,123,0.25), transparent 70%);
+  animation:respirar 3.2s ease-in-out infinite;    /* motion continuo, no popup */
+}
+.splash-barra { width:220px; height:4px; border-radius:var(--r-pill); background:var(--linea); overflow:hidden; }
+.splash-barra span {                               /* barra indeterminada que recorre de lado a lado */
+  display:block; width:40%; height:100%; border-radius:var(--r-pill);
+  background:linear-gradient(90deg, var(--ambar), var(--teal));
+  animation:recorrer 1.4s ease-in-out infinite;    /* movimiento continuo */
+}
+
+/* ---------- LAYOUT PRINCIPAL ---------- */
+#app { position:relative; z-index:1; display:flex; height:100vh; padding:14px; gap:14px; } /* sidebar + vista */
+
+/* Barra lateral negra con iconos (como en la foto). */
+#sidebar {
+  width:74px; background:var(--sidebar); border-radius:var(--r-card);
+  display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:8px;
+}
+.sidebar-marca {
+  width:40px; height:40px; border-radius:12px; margin-bottom:12px;
+  display:grid; place-items:center; font-weight:800; color:var(--bg-0);
+  background:linear-gradient(135deg, var(--ambar), var(--durazno)); /* logo con degradado calido */
+}
+#sidebar-nav, .sidebar-pie { display:flex; flex-direction:column; gap:8px; align-items:center; }
+.sidebar-pie { margin-top:auto; }                  /* empuja la seccion de cuenta hacia abajo */
+
+/* Boton de navegacion de la barra lateral. */
+.nav-btn {
+  width:46px; height:46px; border:none; border-radius:14px; cursor:pointer;
+  background:transparent; color:var(--tinta-suave); font-size:18px;
+  display:grid; place-items:center;
+  transition:background .25s ease, color .25s ease, transform .25s ease; /* micro-interaccion suave */
+}
+.nav-btn:hover { color:var(--tinta); transform:translateY(-2px); }       /* elevacion al pasar el cursor */
+.nav-btn.activo { background:var(--bg-2); color:var(--ambar); }          /* item seleccionado */
+
+/* Contenedor donde el router monta cada vista. Scroll interno propio. */
+#vista { flex:1; overflow:auto; border-radius:var(--r-card); }
+
+/* Transicion de vista: fade sutil (sin zoom ni popup). app.js/router.js alternan la clase. */
+.vista-entrando { animation:aparecer-suave .2s ease both; }
+@keyframes aparecer-suave { from { opacity:0; } to { opacity:1; } } /* solo opacidad, nada de escala */
+
+/* ---------- TARJETAS GLASS ---------- */
+.tarjeta {
+  background:var(--glass); border:1px solid rgba(245,238,228,0.08); /* fondo translucido + borde claro */
+  border-radius:var(--r-card); padding:20px;
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);   /* efecto vidrio */
+  box-shadow:0 10px 30px rgba(0,0,0,0.35);                          /* sombra suave */
+  transition:transform .28s ease, box-shadow .28s ease;            /* micro-interaccion */
+}
+.tarjeta:hover { transform:translateY(-3px); box-shadow:0 16px 40px rgba(0,0,0,0.45); } /* elevacion */
+.tarjeta.brilla { animation:glow-borde 4s ease-in-out infinite; }  /* glow que respira (opcional por tarjeta) */
+
+.titulo { font-size:22px; font-weight:800; margin-bottom:4px; }    /* titulo de seccion */
+.subtitulo { color:var(--tinta-suave); margin-bottom:16px; }       /* subtitulo/descripcion */
+
+/* ---------- PILLS / KPIs ---------- */
+.pill {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:8px 14px; border-radius:var(--r-pill);
+  background:rgba(245,238,228,0.06); color:var(--tinta); font-size:13px;
+}
+.kpi-num { font-size:28px; font-weight:800; }                      /* cifra grande de KPI (animada) */
+.kpi-lbl { color:var(--tinta-suave); font-size:12px; }             /* etiqueta del KPI */
+
+/* ---------- BOTONES ---------- */
+.boton {
+  border:1px solid var(--linea); background:transparent; color:var(--tinta);
+  padding:12px 18px; border-radius:14px; cursor:pointer; font-family:inherit; font-size:14px;
+  transition:background .2s ease, border-color .2s ease, transform .12s ease; /* micro-interaccion */
+}
+.boton:hover { border-color:var(--ambar); transform:translateY(-1px); }       /* realce al pasar cursor */
+.boton:active { transform:translateY(0); }                                     /* feedback al presionar */
+.boton-primario {
+  border:none; color:var(--bg-0); font-weight:700;
+  background:linear-gradient(135deg, var(--ambar), var(--durazno)); /* boton clave calido */
+}
+.boton-primario:disabled { opacity:.5; cursor:default; transform:none; }       /* estado deshabilitado */
+
+/* ---------- CAMPOS DE FORMULARIO ---------- */
+.campo { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }   /* etiqueta + control */
+.campo > label { font-size:13px; color:var(--tinta-suave); }                   /* etiqueta del campo */
+.campo select, .campo input, .campo textarea {
+  background:var(--bg-1); border:1px solid var(--linea); color:var(--tinta);
+  padding:11px 12px; border-radius:12px; font-family:inherit; font-size:14px;
+  transition:border-color .2s ease, box-shadow .2s ease;                       /* foco animado */
+}
+.campo select:focus, .campo input:focus, .campo textarea:focus {
+  outline:none; border-color:var(--ambar);
+  box-shadow:0 0 0 3px rgba(244,199,123,0.15);                                 /* halo de foco */
+}
+
+/* ---------- SLIDER (estilo dimmer de la foto) ---------- */
+.slider { -webkit-appearance:none; width:100%; height:8px; border-radius:var(--r-pill);
+  background:linear-gradient(90deg, var(--ambar), var(--bg-1)); outline:none; }
+.slider::-webkit-slider-thumb {
+  -webkit-appearance:none; width:22px; height:22px; border-radius:50%;
+  background:var(--tinta); cursor:pointer; border:3px solid var(--ambar);
+  transition:transform .15s ease;                                              /* resorte suave */
+}
+.slider::-webkit-slider-thumb:hover { transform:scale(1.15); }                  /* realce del pulgar */
+
+/* ---------- TOGGLE ---------- */
+.toggle { width:46px; height:26px; border-radius:var(--r-pill); background:var(--linea);
+  position:relative; cursor:pointer; transition:background .25s ease; }
+.toggle.on { background:var(--teal); }                                          /* encendido */
+.toggle::after { content:''; position:absolute; top:3px; left:3px; width:20px; height:20px;
+  border-radius:50%; background:var(--tinta); transition:transform .25s ease; } /* perilla deslizante */
+.toggle.on::after { transform:translateX(20px); }                              /* se desliza al encender */
+
+/* ---------- GAUGE CIRCULAR (SVG) ---------- */
+.gauge-track { fill:none; stroke:var(--linea); stroke-width:10; }              /* aro de fondo */
+.gauge-fill { fill:none; stroke:var(--ambar); stroke-width:10; stroke-linecap:round;
+  transition:stroke-dashoffset 1s ease; }                                      /* el arco se llena animado */
+
+/* ---------- BARRAS DE DESGLOSE ---------- */
+.barra { height:12px; border-radius:var(--r-pill); background:var(--linea); overflow:hidden; }
+.barra > span { display:block; height:100%; width:0;                            /* arranca en 0 y se llena */
+  background:linear-gradient(90deg, var(--teal), var(--petroleo)); transition:width 1s ease; }
+
+/* ---------- TOASTS ---------- */
+#toasts { position:fixed; right:20px; bottom:20px; z-index:20; display:flex; flex-direction:column; gap:10px; }
+.toast { padding:12px 16px; border-radius:14px; background:var(--bg-2); color:var(--tinta);
+  border-left:4px solid var(--teal); box-shadow:0 10px 30px rgba(0,0,0,.4);
+  animation:toast-in .25s ease both; }                                          /* entra deslizando, no zoom */
+.toast.error { border-left-color:var(--terracota); }                            /* variante de error */
+@keyframes toast-in { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:none; } }
+
+/* ---------- KEYFRAMES DE MOTION ---------- */
+@keyframes respirar { 0%,100% { transform:scale(1); opacity:.7; } 50% { transform:scale(1.08); opacity:1; } }
+@keyframes recorrer { 0% { transform:translateX(-120%);} 100% { transform:translateX(360%);} }
+@keyframes glow-borde { 0%,100% { box-shadow:0 10px 30px rgba(0,0,0,.35);} 50% { box-shadow:0 10px 40px rgba(244,199,123,.18);} }
+@keyframes girar { to { transform:rotate(360deg); } }                           /* para el disco/gauge del Inicio */
+
+/* ---------- ACCESIBILIDAD: reducir movimiento ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation:none !important; transition:none !important; } /* desactiva todo el motion */
+}
