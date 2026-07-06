@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>LogiIA</title>
+</head>
+<body style="background:#161311;color:#F5EEE4;font-family:sans-serif;padding:40px">
+  <!-- Contenido temporal: se reemplaza por completo en la Fase 3 -->
+  <h1>LogiIA — cascaron Electron OK</h1>
+  <p id="salud">Consultando sidecar…</p>
+  <script>
+    // Prueba minima: consulta /health y muestra el estado, para confirmar que el puente funciona.
+    async function probar() {                                  // funcion asincrona de prueba
+      try {                                                    // intenta llamar al sidecar
+        const r = await fetch('http://127.0.0.1:8000/health')  // peticion a /health
+        const j = await r.json()                               // parsea el JSON
+        document.getElementById('salud').textContent = 'Sidecar: ' + j.estado // muestra el estado
+      } catch (e) {                                            // si el sidecar aun no responde
+        document.getElementById('salud').textContent = 'Sidecar no responde aun, reintentando…' // aviso
+        setTimeout(probar, 800)                                // reintenta en 800 ms
+      }
+    }
+    probar()                                                   // inicia la prueba
+  </script>
+</body>
+</html>
