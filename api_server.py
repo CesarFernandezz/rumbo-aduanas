@@ -51,3 +51,21 @@ def _startup():                                       # inicializa DB y dispara 
 @app.get("/health")                                   # endpoint de salud que consulta el splash de Electron
 def health():                                         # devuelve el estado actual del motor de ML
     return {"estado": MOTOR["estado"]}                # 'entrenando' | 'listo' | 'error'
+
+class LandedIn(BaseModel):                            # esquema del cuerpo JSON para /landed-cost
+    fob: float                                        # valor FOB de la mercancia
+    flete: float = 0                                  # flete internacional
+    seguro: float = 0                                 # seguro internacional
+    arancel: float = 0                                # alicuota de arancel (%)
+    tasa: float = 0                                   # tasa aduanera de servicio (%)
+    iva: float = 16                                   # IVA de importacion (%)
+    gastos: float = 0                                 # gastos locales/portuarios
+
+@app.post("/landed-cost")                             # endpoint de la calculadora financiera
+def landed(datos: LandedIn):                          # recibe y valida el cuerpo con Pydantic
+    from src.landed_cost import calcular_landed_cost  # import perezoso de la funcion del backend
+    return calcular_landed_cost(                      # llama a la funcion existente y devuelve su dict tal cual
+        datos.fob, datos.flete, datos.seguro,         # componentes CIF
+        datos.arancel, datos.tasa, datos.iva,         # porcentajes de impuestos
+        datos.gastos,                                 # gastos locales
+    )
