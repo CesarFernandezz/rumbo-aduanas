@@ -121,6 +121,16 @@ class EtaIn(BaseModel):                               # cuerpo JSON de /predict-
     carga: str                                        # tipo de mercancia
     mes: int                                          # mes estimado de envio (1-12)
 
+class VuceIn(BaseModel):                              # cuerpo JSON de /vuce
+    regimen: str                                      # IMPORTACIÓN o EXPORTACIÓN
+    consulta: str                                     # descripcion de la mercancia/consulta
+
+class VucePdfIn(BaseModel):                           # cuerpo JSON de /vuce-pdf
+    regimen: str                                      # regimen aduanero
+    consulta: str                                     # consulta original
+    html: str                                         # dictamen HTML generado por /vuce
+    ruta: str                                         # ruta de guardado (la elige Electron)
+
 @app.post("/predict-eta")                             # endpoint de prediccion de ETA
 def predict_eta(datos: EtaIn):                        # recibe los parametros de la ruta
     if MOTOR["estado"] != "listo":                    # si el modelo aun no termino de entrenar
@@ -156,3 +166,18 @@ def eta_historico(origen: str):                       # recibe el origen por que
     rep = filtrado.groupby("operador")["dias_reales"].mean().reset_index()  # promedio de dias por operador
     return [{"operador": str(r["operador"]), "dias_promedio": float(r["dias_reales"])}  # serializa cada fila
             for _, r in rep.iterrows()]
+
+@app.post("/vuce")                                    # endpoint del asesor legal VUCE
+def vuce(datos: VuceIn):                              # recibe regimen y consulta
+    try:                                              # import perezoso: sentence-transformers/faiss pueden faltar
+        from src.vuce_ai import consultar_asesor_vuce # cargar el asesor solo al usarlo
+    except Exception as e:                            # si las dependencias pesadas no estan instaladas
+        raise HTTPException(503, f"Modulo VUCE no disponible: {e}. Instala sentence-transformers y faiss-cpu.")  # error 503
+    html = consultar_asesor_vuce(datos.regimen, datos.consulta)  # genera el dictamen HTML
+    return {"html": html}                             # lo devuelve al front para mostrarlo
+
+@app.post("/vuce-pdf")                                # endpoint que exporta el dictamen a PDF
+def vuce_pdf(datos: VucePdfIn):                       # recibe el dictamen y la ruta destino
+    from src.vuce_pdf import generar_pdf_dictamen     # import perezoso (reportlab)
+    generar_pdf_dictamen(datos.regimen, datos.consulta, datos.html, datos.ruta)  # escribe el PDF en disco
+    return {"ok": True, "ruta": datos.ruta}           # confirma la ruta guardada

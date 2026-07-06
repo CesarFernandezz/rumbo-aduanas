@@ -48,3 +48,12 @@ def test_eta_historico_devuelve_lista():              # el grafico historico deb
     r = client.get("/eta-historico", params={"origen": "Miami"})  # agregado para origen Miami
     assert r.status_code == 200                        # 200 OK
     assert isinstance(r.json(), list)                  # debe ser una lista (posiblemente vacia)
+
+def test_vuce_pdf_genera_archivo(tmp_path):           # verifica que /vuce-pdf escribe un PDF en la ruta dada
+    destino = str(tmp_path / "dictamen_test.pdf")     # ruta temporal de salida
+    r = client.post("/vuce-pdf", json={               # peticion con un HTML minimo
+        "regimen": "IMPORTACIÓN", "consulta": "cafe en grano",
+        "html": "<h3>Guia</h3><ul><li>Paso 1</li></ul>", "ruta": destino,
+    })
+    assert r.json()["ok"] is True                      # debe reportar exito
+    assert os.path.exists(destino)                     # el archivo PDF debe existir en disco
