@@ -181,3 +181,30 @@ def vuce_pdf(datos: VucePdfIn):                       # recibe el dictamen y la 
     from src.vuce_pdf import generar_pdf_dictamen     # import perezoso (reportlab)
     generar_pdf_dictamen(datos.regimen, datos.consulta, datos.html, datos.ruta)  # escribe el PDF en disco
     return {"ok": True, "ruta": datos.ruta}           # confirma la ruta guardada
+
+@app.get("/dashboard-summary")                        # KPIs agregados para la pantalla de Inicio
+def dashboard_summary():                              # combina el historico CSV con la tabla embarques
+    resumen = {}                                      # acumulador de resultados
+    df = pd.read_csv(RUTA_CSV)                         # carga el historico (siempre hay datos)
+    resumen["registros_historicos"] = int(len(df))    # total de envios historicos registrados
+    resumen["eta_promedio"] = round(float(df["dias_reales"].mean()), 1)  # promedio general de dias reales
+    conteo_aduana = df["aduana_destino"].value_counts()  # cuantos envios por cada aduana
+    resumen["por_aduana"] = [{"aduana": str(k), "envios": int(v)}  # serializa la distribucion por aduana
+                             for k, v in conteo_aduana.items()]
+    promedio_operador = df.groupby("operador")["dias_reales"].mean().sort_values()  # operadores por rapidez
+    resumen["operador_mas_rapido"] = str(promedio_operador.index[0])  # el de menor promedio de dias
+    # Conteos "en vivo" desde la tabla embarques (si esta vacia, quedan en 0).
+    estados = {"En Tránsito": 0, "Aduana": 0, "Entregado": 0, "Demorado": 0}  # estados posibles
+    try:                                              # la tabla podria no existir o estar vacia
+        from src.database import conectar_db          # import perezoso de la conexion
+        conn = conectar_db()                          # abre SQLite
+        cur = conn.cursor()                           # cursor de consulta
+        cur.execute("SELECT estado, COUNT(*) FROM embarques GROUP BY estado")  # agrupa por estado
+        for est, n in cur.fetchall():                 # recorre los resultados
+            if est in estados:                        # solo estados conocidos
+                estados[est] = int(n)                 # asigna el conteo
+        conn.close()                                  # cierra la conexion
+    except Exception:                                 # ante cualquier error de DB
+        pass                                          # dejamos los estados en 0 (no rompe el Inicio)
+    resumen["estados"] = estados                      # agrega los conteos por estado
+    return resumen                                    # devuelve el resumen completo

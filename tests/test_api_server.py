@@ -57,3 +57,11 @@ def test_vuce_pdf_genera_archivo(tmp_path):           # verifica que /vuce-pdf e
     })
     assert r.json()["ok"] is True                      # debe reportar exito
     assert os.path.exists(destino)                     # el archivo PDF debe existir en disco
+
+def test_dashboard_summary_tiene_kpis():              # el resumen del Inicio debe traer KPIs del historico
+    r = client.get("/dashboard-summary")              # peticion del resumen
+    d = r.json()                                       # respuesta agregada
+    assert d["registros_historicos"] > 0               # el CSV tiene datos historicos
+    assert "eta_promedio" in d                          # promedio general de dias reales
+    assert isinstance(d["por_aduana"], list)            # distribucion por aduana
+    assert "estados" in d                               # conteos por estado de embarque
