@@ -37,12 +37,12 @@ export async function renderInicio(contenedor) {
           </div>
         </button>
 
-        <button class="tarjeta mini" id="card-landed">        <!-- tarjeta inferior central: Landed Cost -->
+        <div class="tarjeta mini" role="button" tabindex="0" id="card-landed"> <!-- div (no button): contiene un input, invalido anidar interactivos en un button -->
           <div class="mini-top"><span>Landed Cost</span></div>
           <div class="mini-cifra"><span class="kpi-lbl">Simulación rápida FOB</span></div>
           <input type="range" min="1000" max="50000" value="10000" class="slider" id="mini-slider" />
           <div class="mini-cifra"><span class="kpi-num" id="mini-total">0</span><span class="kpi-lbl"> total est.</span></div>
-        </button>
+        </div>
 
         <button class="tarjeta mini" id="card-vuce">          <!-- tarjeta inferior derecha: VUCE (gauge) -->
           <div class="mini-top"><span>Asesor VUCE</span></div>

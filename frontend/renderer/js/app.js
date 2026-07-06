@@ -3,7 +3,6 @@
 import { iniciarFondoVivo, mostrarToast } from './motion.js' // motor de motion
 import { api } from './api.js'                               // llamadas al sidecar
 import { router } from './router.js'                         // navegacion entre vistas
-import { estado } from './estado.js'                         // estado de sesion
 import { renderInicio } from './vistas/inicio.js'            // vista Inicio
 import { renderEta } from './vistas/eta.js'                  // vista Predictor ETA
 import { renderVuce } from './vistas/vuce.js'                // vista Asesor VUCE

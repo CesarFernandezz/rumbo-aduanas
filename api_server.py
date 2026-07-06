@@ -82,13 +82,16 @@ def register(datos: RegisterIn):                      # recibe usuario, clave y 
     from src.database import conectar_db              # para actualizar la empresa tras crear el usuario
     ok, msg = registrar_usuario(datos.username, datos.password, rol="User")  # crea el usuario (clave hasheada)
     if ok and datos.empresa:                          # si se creo y hay empresa, la guardamos
-        conn = conectar_db()                          # abre conexion a SQLite
-        conn.execute(                                 # actualiza el campo empresa del usuario recien creado
-            "UPDATE usuarios SET empresa = ? WHERE username = ?",
-            (datos.empresa, datos.username.strip().lower()),  # auth guarda el username en minusculas
-        )
-        conn.commit()                                 # confirma el cambio
-        conn.close()                                  # cierra la conexion
+        try:                                          # si falla el guardado de empresa, el usuario ya fue creado; no romper el registro
+            conn = conectar_db()                      # abre conexion a SQLite
+            conn.execute(                             # actualiza el campo empresa del usuario recien creado
+                "UPDATE usuarios SET empresa = ? WHERE username = ?",
+                (datos.empresa, datos.username.strip().lower()),  # auth guarda el username en minusculas
+            )
+            conn.commit()                             # confirma el cambio
+            conn.close()                              # cierra la conexion
+        except Exception:                             # error transitorio de DB: no debe tumbar el registro exitoso
+            pass
     return {"ok": ok, "msg": msg}                     # devuelve exito y mensaje
 
 @app.post("/landed-cost")                             # endpoint de la calculadora financiera

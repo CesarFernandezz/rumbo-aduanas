@@ -22,6 +22,7 @@ function lanzarSidecar() {                          // arranca uvicorn sirviendo
   procesoPython.stdout.on('data', d => console.log('[sidecar]', d.toString()))  // log de salida estandar
   procesoPython.stderr.on('data', d => console.log('[sidecar]', d.toString()))  // log de errores
   procesoPython.on('exit', code => console.log('[sidecar] termino con codigo', code)) // aviso al terminar
+  procesoPython.on('error', (e) => console.error('[sidecar] no se pudo iniciar Python:', e.message)) // evita que un 'error' sin manejar tumbe el proceso principal
 }
 
 function crearVentana() {                           // crea la ventana principal del dashboard
@@ -57,7 +58,8 @@ ipcMain.handle('elegir-ruta-pdf', async () => {     // maneja la invocacion desd
 function matarSidecar() {                           // detiene el proceso Python hijo
   if (!procesoPython) return                        // si no hay proceso, nada que hacer
   if (process.platform === 'win32') {               // en Windows hay que matar el arbol de procesos
-    spawn('taskkill', ['/pid', String(procesoPython.pid), '/f', '/t']) // /f forzar, /t incluir hijos
+    const tk = spawn('taskkill', ['/pid', String(procesoPython.pid), '/f', '/t']) // /f forzar, /t incluir hijos
+    tk.on('error', () => {})                        // ignorar si taskkill no esta disponible
   } else {                                          // en otros sistemas
     procesoPython.kill()                            // envia SIGTERM
   }
