@@ -219,3 +219,9 @@ body {
 .mini-cifra { display:flex; align-items:baseline; gap:6px; }                  /* cifra + etiqueta */
 .mini-pills { display:flex; gap:8px; flex-wrap:wrap; margin-top:auto; }       /* pills al pie */
 .gauge { display:block; margin:0 auto; }                                      /* centra el gauge */
+
+/* ---------- LAYOUT COMUN DE MODULOS ---------- */
+.modulo { padding:22px; }                                       /* margen interno de cada modulo */
+.dos-columnas { display:grid; grid-template-columns:4fr 6fr; gap:16px; align-items:start; } /* form + resultado */
+@media (max-width:980px){ .dos-columnas { grid-template-columns:1fr; } } /* apila en ventanas angostas */
+.bar-val { min-width:48px; text-align:right; }                  /* alinea los valores del desglose */
