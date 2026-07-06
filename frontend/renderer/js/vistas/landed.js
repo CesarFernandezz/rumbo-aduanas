@@ -66,11 +66,10 @@ export function renderLanded(contenedor) {
         </div>`).join('')
       cont.querySelectorAll('.barra > span').forEach((sp, i) => {   // anima anchos
         sp.style.background = filas[i][2]                          // color especifico por concepto
-        animarBarra(sp, (filas[i][1] / r.landed_cost) * 100)       // proporcion respecto al total
+        animarBarra(sp, r.landed_cost > 0 ? (filas[i][1] / r.landed_cost) * 100 : 0) // guarda division por cero
       })
       cont.querySelectorAll('.lc-val').forEach((v, i) => {         // anima los montos
         const el = v                                              // referencia
-        const inicio = performance.now()                          // (usamos animarNumero con formato moneda)
         animarNumero(el, 0, filas[i][1], { decimales: 2 })        // count-up numerico
         setTimeout(() => { el.textContent = money(filas[i][1]) }, 950) // al terminar, formatea como moneda
       })
