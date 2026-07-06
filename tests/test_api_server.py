@@ -20,3 +20,7 @@ def test_landed_cost_calcula_cif_y_total():           # valida la matematica del
     d = r.json()                                       # respuesta con el desglose
     assert round(d["cif"], 2) == 11800.0               # CIF = 10000 + 1500 + 300
     assert d["landed_cost"] > d["cif"]                 # el total debe superar al CIF (por impuestos)
+
+def test_login_credenciales_malas_devuelve_ok_false():  # login con credenciales inexistentes
+    r = client.post("/login", json={"username": "nadie_zzz", "password": "malaclave"})  # usuario que no existe
+    assert r.json()["ok"] is False                       # debe rechazar el acceso

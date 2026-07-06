@@ -48,9 +48,14 @@ def _startup():                                       # inicializa DB y dispara 
     if os.getenv("LOGIIA_SKIP_TRAIN") != "1":         # en tests seteamos LOGIIA_SKIP_TRAIN=1 para no entrenar
         threading.Thread(target=_entrenar_en_segundo_plano, daemon=True).start()  # entrena en hilo aparte
 
-@app.get("/health")                                   # endpoint de salud que consulta el splash de Electron
-def health():                                         # devuelve el estado actual del motor de ML
-    return {"estado": MOTOR["estado"]}                # 'entrenando' | 'listo' | 'error'
+class LoginIn(BaseModel):                             # cuerpo JSON de /login
+    username: str                                     # nombre de usuario
+    password: str                                     # contraseña en texto plano (se verifica con bcrypt)
+
+class RegisterIn(BaseModel):                          # cuerpo JSON de /register
+    username: str                                     # nombre de usuario deseado
+    password: str                                     # contraseña deseada
+    empresa: str | None = None                        # empresa/organizacion (opcional)
 
 class LandedIn(BaseModel):                            # esquema del cuerpo JSON para /landed-cost
     fob: float                                        # valor FOB de la mercancia
@@ -60,6 +65,31 @@ class LandedIn(BaseModel):                            # esquema del cuerpo JSON 
     tasa: float = 0                                   # tasa aduanera de servicio (%)
     iva: float = 16                                   # IVA de importacion (%)
     gastos: float = 0                                 # gastos locales/portuarios
+
+@app.get("/health")                                   # endpoint de salud que consulta el splash de Electron
+def health():                                         # devuelve el estado actual del motor de ML
+    return {"estado": MOTOR["estado"]}                # 'entrenando' | 'listo' | 'error'
+
+@app.post("/login")                                   # endpoint de autenticacion
+def login(datos: LoginIn):                            # recibe usuario y clave
+    from src.auth import verificar_usuario            # import perezoso (usa bcrypt)
+    ok, id_u, rol = verificar_usuario(datos.username, datos.password)  # verifica contra la DB
+    return {"ok": ok, "id": id_u, "rol": rol}         # devuelve resultado y datos de sesion
+
+@app.post("/register")                                # endpoint de registro de nuevos operadores
+def register(datos: RegisterIn):                      # recibe usuario, clave y empresa
+    from src.auth import registrar_usuario            # import perezoso
+    from src.database import conectar_db              # para actualizar la empresa tras crear el usuario
+    ok, msg = registrar_usuario(datos.username, datos.password, rol="User")  # crea el usuario (clave hasheada)
+    if ok and datos.empresa:                          # si se creo y hay empresa, la guardamos
+        conn = conectar_db()                          # abre conexion a SQLite
+        conn.execute(                                 # actualiza el campo empresa del usuario recien creado
+            "UPDATE usuarios SET empresa = ? WHERE username = ?",
+            (datos.empresa, datos.username.strip().lower()),  # auth guarda el username en minusculas
+        )
+        conn.commit()                                 # confirma el cambio
+        conn.close()                                  # cierra la conexion
+    return {"ok": ok, "msg": msg}                     # devuelve exito y mensaje
 
 @app.post("/landed-cost")                             # endpoint de la calculadora financiera
 def landed(datos: LandedIn):                          # recibe y valida el cuerpo con Pydantic
