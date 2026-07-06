@@ -24,3 +24,27 @@ def test_landed_cost_calcula_cif_y_total():           # valida la matematica del
 def test_login_credenciales_malas_devuelve_ok_false():  # login con credenciales inexistentes
     r = client.post("/login", json={"username": "nadie_zzz", "password": "malaclave"})  # usuario que no existe
     assert r.json()["ok"] is False                       # debe rechazar el acceso
+
+def test_predict_eta_con_modelo_stub():               # prueba la estructura de la prediccion sin entrenar de verdad
+    class ModeloFalso:                                # modelo simulado que siempre predice 10 dias
+        def predict(self, X):                         # imita la interfaz .predict de sklearn
+            return [10.0]                             # devuelve una lista con un valor
+    class EncoderFalso:                               # encoder simulado que siempre devuelve 0
+        def transform(self, v):                       # imita LabelEncoder.transform
+            return [0]                                # codigo ficticio
+    api_server.MOTOR["estado"] = "listo"              # marcamos el motor como listo
+    api_server.MOTOR["modelos"] = {k: ModeloFalso() for k in ["total", "transito", "fondeo", "aduana"]}  # 4 modelos
+    api_server.MOTOR["encoders"] = {k: EncoderFalso() for k in            # 5 encoders esperados
+        ["origen", "aduana_destino", "via", "operador", "tipo_carga"]}
+    r = client.post("/predict-eta", json={            # peticion de prediccion
+        "origen": "Miami", "via": "Maritimo", "aduana": "La Guaira",
+        "operador": "Maersk", "carga": "Textil y Calzado", "mes": 6,
+    })
+    d = r.json()                                       # respuesta con el desglose
+    assert d["dias_total"] == 10.0                     # el modelo falso predice 10
+    assert {"dias_total", "dias_transito", "dias_fondeo", "dias_aduana", "distancia_km"} <= set(d.keys())  # claves
+
+def test_eta_historico_devuelve_lista():              # el grafico historico debe devolver una lista por operador
+    r = client.get("/eta-historico", params={"origen": "Miami"})  # agregado para origen Miami
+    assert r.status_code == 200                        # 200 OK
+    assert isinstance(r.json(), list)                  # debe ser una lista (posiblemente vacia)

@@ -99,3 +99,60 @@ def landed(datos: LandedIn):                          # recibe y valida el cuerp
         datos.arancel, datos.tasa, datos.iva,         # porcentajes de impuestos
         datos.gastos,                                 # gastos locales
     )
+
+# Distancias logisticas (copiadas de app.py para reproducir la misma logica de ETA sin tocar el backend).
+DISTANCIAS_LOGISTICAS = {
+    "Shanghái": {"Puerto Cabello": {"Marítimo": 15100, "La Guaira": 15150, "Maiquetía": 15150},
+                 "La Guaira": {"Marítimo": 15150, "Puerto Cabello": 15100, "Maiquetía": 15150},
+                 "Maiquetía": {"Marítimo": 15150, "Puerto Cabello": 15100, "La Guaira": 15150}},
+    "Miami": {"Puerto Cabello": {"Marítimo": 1980, "La Guaira": 2050, "Maiquetía": 2050},
+              "La Guaira": {"Marítimo": 2050, "Puerto Cabello": 1980, "Maiquetía": 2050},
+              "Maiquetía": {"Marítimo": 2050, "Puerto Cabello": 1980, "La Guaira": 2050}},
+    "Róterdam": {"Puerto Cabello": {"Marítimo": 7400, "La Guaira": 7350, "Maiquetía": 7350},
+                 "La Guaira": {"Marítimo": 7350, "Puerto Cabello": 7400, "Maiquetía": 7350},
+                 "Maiquetía": {"Marítimo": 7350, "Puerto Cabello": 7400, "La Guaira": 7350}},
+}
+
+class EtaIn(BaseModel):                               # cuerpo JSON de /predict-eta
+    origen: str                                       # ciudad de origen internacional
+    via: str                                          # via de transporte (Maritimo/Aereo)
+    aduana: str                                       # aduana de ingreso en Venezuela
+    operador: str                                     # operador logistico / naviera
+    carga: str                                        # tipo de mercancia
+    mes: int                                          # mes estimado de envio (1-12)
+
+@app.post("/predict-eta")                             # endpoint de prediccion de ETA
+def predict_eta(datos: EtaIn):                        # recibe los parametros de la ruta
+    if MOTOR["estado"] != "listo":                    # si el modelo aun no termino de entrenar
+        raise HTTPException(503, "El modelo ETA aun se esta entrenando. Intenta en unos segundos.")
+    modelos = MOTOR["modelos"]                         # modelos entrenados (o falsos en test)
+    encoders = MOTOR["encoders"]                       # codificadores de categorias
+    # Distancia segun tabla; si la combinacion no existe (ej. Aereo), usa 4000 km por defecto (igual que app.py).
+    distancia = DISTANCIAS_LOGISTICAS.get(datos.origen, {}).get(datos.aduana, {}).get(datos.via, 4000)
+    try:                                              # codificar las categorias con los encoders del modelo
+        oc = encoders["origen"].transform([datos.origen])[0]            # codigo del origen
+        ac = encoders["aduana_destino"].transform([datos.aduana])[0]    # codigo de la aduana
+        vc = encoders["via"].transform([datos.via])[0]                  # codigo de la via
+        pc = encoders["operador"].transform([datos.operador])[0]        # codigo del operador
+        cc = encoders["tipo_carga"].transform([datos.carga])[0]         # codigo del tipo de carga
+    except Exception:                                 # si alguna categoria no fue vista durante el entrenamiento
+        raise HTTPException(400, "Alguna opcion seleccionada no existe en los datos historicos del modelo.")
+    cols = ["origen", "aduana_destino", "via", "operador", "tipo_carga", "mes", "distancia_km"]  # orden esperado
+    X = pd.DataFrame([[oc, ac, vc, pc, cc, datos.mes, distancia]], columns=cols)  # fila de entrada para el modelo
+    return {                                          # desglose completo (los 4 sub-modelos que app.py no usaba)
+        "dias_total": float(modelos["total"].predict(X)[0]),      # dias totales estimados
+        "dias_transito": float(modelos["transito"].predict(X)[0]),# dias de transito maritimo/aereo
+        "dias_fondeo": float(modelos["fondeo"].predict(X)[0]),    # dias de espera/fondeo en puerto
+        "dias_aduana": float(modelos["aduana"].predict(X)[0]),    # dias de nacionalizacion en aduana
+        "distancia_km": distancia,                                # distancia usada en el calculo
+    }
+
+@app.get("/eta-historico")                            # datos para el grafico de barras por operador
+def eta_historico(origen: str):                       # recibe el origen por query string
+    df = pd.read_csv(RUTA_CSV)                         # carga el historico completo
+    filtrado = df[df["origen"] == origen]             # filtra por el origen seleccionado
+    if filtrado.empty:                                # si no hay filas para ese origen
+        return []                                     # devuelve lista vacia
+    rep = filtrado.groupby("operador")["dias_reales"].mean().reset_index()  # promedio de dias por operador
+    return [{"operador": str(r["operador"]), "dias_promedio": float(r["dias_reales"])}  # serializa cada fila
+            for _, r in rep.iterrows()]
