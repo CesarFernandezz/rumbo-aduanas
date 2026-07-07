@@ -30,6 +30,8 @@ function crearVentana() {                           // crea la ventana principal
     width: 1280, height: 820,                       // tamaño inicial parecido a las fotos
     minWidth: 1024, minHeight: 680,                 // tamaño minimo utilizable
     backgroundColor: '#161311',                     // color de fondo mientras carga (evita flash blanco)
+    icon: path.join(__dirname, 'renderer', 'assets', 'rumbo.ico'), // icono de Rumbo (ventana + barra de tareas)
+    title: 'Rumbo — Gestión Aduanera Inteligente',  // titulo de la ventana desde el arranque (antes de cargar el HTML)
     autoHideMenuBar: true,                          // ocultar la barra de menu nativa
     webPreferences: {                               // opciones de seguridad del renderer
       preload: path.join(__dirname, 'preload.js'),  // script puente seguro
@@ -41,6 +43,7 @@ function crearVentana() {                           // crea la ventana principal
 }
 
 app.whenReady().then(() => {                        // cuando Electron esta listo
+  if (process.platform === 'win32') app.setAppUserModelId('com.rumbo.aduanas') // identidad en la barra de tareas de Windows
   lanzarSidecar()                                   // 1) arranca el backend Python
   crearVentana()                                    // 2) abre la ventana (el renderer hara el polling /health)
 })
