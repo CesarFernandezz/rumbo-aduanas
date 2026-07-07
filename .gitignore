@@ -9,3 +9,8 @@ venv/
 # Artefactos varios
 *.log
 .env
+
+# Artefactos de runtime/generados (NO versionar: la BD trae credenciales; el resto se regenera)
+data/logistica.db
+data/indice_legal.pkl
+Dictamen_VUCE.pdf
