@@ -2,6 +2,7 @@
 
 import { api } from '../api.js'                                   // llamadas al sidecar
 import { animarNumero, animarBarra, mostrarToast } from '../motion.js' // animaciones
+import { estado } from '../estado.js'                             // sesion (para guardar en historial)
 
 // Definicion de los campos numericos: [id, etiqueta, valor por defecto].
 const CAMPOS = [
@@ -45,6 +46,7 @@ export function renderLanded(contenedor) {
     // Lee cada input y lo convierte a numero (0 si esta vacio).
     const datos = {}                                              // objeto de parametros
     for (const [id] of CAMPOS) datos[id] = Number(document.getElementById('lc-' + id).value) || 0 // lee valores
+    datos.usuario = estado.sesion.usuario                         // usuario activo (o null): el backend lo guarda en historial
     try {
       const r = await api.landedCost(datos)                       // pide el calculo al backend
       animarNumero(document.getElementById('lc-total'), 0, r.landed_cost, { decimales: 2 }) // total con count-up

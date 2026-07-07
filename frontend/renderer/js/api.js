@@ -28,7 +28,7 @@ export const api = {
   register: (username, password, empresa) => postJson('/register', { username, password, empresa }), // registro
   predictEta: (datos) => postJson('/predict-eta', datos), // prediccion de ETA (datos = {origen,via,...})
   etaHistorico: (origen) => pedir('/eta-historico?origen=' + encodeURIComponent(origen)), // grafico historico
-  vuce: (regimen, consulta) => postJson('/vuce', { regimen, consulta }), // dictamen legal
+  vuce: (regimen, consulta, usuario) => postJson('/vuce', { regimen, consulta, usuario }), // dictamen legal (+usuario para historial)
   vucePdf: (datos) => postJson('/vuce-pdf', datos), // exportar dictamen a PDF (datos={regimen,consulta,html,ruta})
   landedCost: (datos) => postJson('/landed-cost', datos), // calculadora financiera
   dashboardSummary: () => pedir('/dashboard-summary'), // KPIs de la pantalla de Inicio

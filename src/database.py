@@ -154,12 +154,16 @@ def precargar_datos_semilla():
     conn = conectar_db()
     cursor = conn.cursor()
     
-    # 1. Crear un usuario de pruebas por defecto si no hay ninguno (Contraseña plana por ahora)
+    # 1. Crear usuarios de prueba por defecto si no hay ninguno. Las contraseñas se guardan HASHEADAS con bcrypt
+    #    (nunca en texto plano), igual que las de los usuarios registrados desde la app.
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:
-        cursor.execute("INSERT INTO usuarios (username, password_hash, rol, empresa) VALUES ('admin', 'admin123', 'Admin', 'Aduana Central')")
-        cursor.execute("INSERT INTO usuarios (username, password_hash, rol, empresa) VALUES ('consultor', 'pyme123', 'User', 'Logistica Pyme C.A.')")
-        print("   [+] Usuarios semilla agregados (admin/consultor)")
+        import bcrypt  # cifrado de contraseñas
+        hash_admin = bcrypt.hashpw('admin123'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')   # hash del admin de prueba
+        hash_cons = bcrypt.hashpw('pyme123'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')     # hash del consultor de prueba
+        cursor.execute("INSERT INTO usuarios (username, password_hash, rol, empresa) VALUES ('admin', ?, 'Admin', 'Aduana Central')", (hash_admin,))
+        cursor.execute("INSERT INTO usuarios (username, password_hash, rol, empresa) VALUES ('consultor', ?, 'User', 'Logistica Pyme C.A.')", (hash_cons,))
+        print("   [+] Usuarios semilla agregados (admin/consultor) con contraseñas hasheadas")
 
     # 2. Cargar subpartidas comunes del Arancel de Aduanas de Venezuela para pruebas
     items_arancel = [

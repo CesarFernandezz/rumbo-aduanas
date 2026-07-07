@@ -35,11 +35,11 @@ export function renderVuce(contenedor) {
     const regimen = document.getElementById('vuce-regimen').value // regimen elegido
     visor.innerHTML = '<span class="kpi-lbl">Generando dictamen…</span>' // estado de carga
     try {
-      const r = await api.vuce(regimen, consulta)                 // pide el dictamen
+      const r = await api.vuce(regimen, consulta, estado.sesion.usuario) // pide el dictamen (+usuario para historial)
       ultimoHtml = r.html                                         // guarda el HTML para el PDF
       visor.innerHTML = r.html                                    // muestra el dictamen (HTML del backend)
       btnPdf.disabled = false                                     // habilita la descarga
-      if (estado.sesion.usuario) mostrarToast('Consulta registrada en tu historial.') // aviso si hay sesion
+      if (estado.sesion.usuario) mostrarToast('Consulta guardada en tu historial.') // el backend ya la persistio
     } catch (e) {
       visor.innerHTML = '<span class="kpi-lbl">No se pudo generar el dictamen.</span>' // estado de error
       mostrarToast(e.message, 'error')                            // detalle del error (ej. deps VUCE faltan)

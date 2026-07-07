@@ -2,14 +2,19 @@
 
 import { api } from '../api.js'                                   // llamadas al sidecar
 import { animarNumero, animarBarra, dibujarLineaCanvas, mostrarToast } from '../motion.js' // animaciones
-import { estado } from '../estado.js'                             // sesion (para saber si guardar historial)
+import { estado } from '../estado.js'                             // sesion (para guardar en historial)
 
-// Opciones de los desplegables (mismas que la app Qt original).
-const ORIGENES = ['Shanghái', 'Miami', 'Róterdam']               // origenes internacionales
-const VIAS = ['Marítimo', 'Aéreo']                               // vias de transporte
-const ADUANAS = ['Puerto Cabello', 'La Guaira', 'Maiquetía']     // aduanas de ingreso
-const OPERADORES = ['Maersk', 'MSC', 'CMA CGM']                  // operadores logisticos
-const CARGAS = ['Tecnología y Electrónica', 'Materia Prima Industrial', 'Textil y Calzado'] // tipos de carga
+// Opciones de los desplegables — coinciden EXACTAMENTE con los datos de entrenamiento (src/generar_data_logistica.py).
+const ORIGENES = ['Shanghái', 'Miami', 'Róterdam', 'Veracruz', 'Panamá']   // 5 origenes reales
+const VIAS = ['Marítimo', 'Aéreo']                                          // vias de transporte
+// La aduana y el operador dependen de la via: maritimo entra por puertos con navieras; aereo por Maiquetia con aerolineas.
+const ADUANAS_POR_VIA = { 'Marítimo': ['Puerto Cabello', 'La Guaira'], 'Aéreo': ['Maiquetía'] }
+const OPERADORES_POR_VIA = { 'Marítimo': ['Maersk', 'MSC', 'CMA CGM'], 'Aéreo': ['DHL Cargo', 'Laser Cargo', 'TAP Cargo'] }
+const CARGAS = [                                                            // 10 categorias reales
+  'Tecnología y Electrónica', 'Materia Prima Industrial', 'Textil y Calzado',
+  'Maquinaria y Repuestos', 'Alimentos y Perecederos', 'Fármacos y Salud',
+  'Automotriz', 'Químicos y Peligrosos', 'Hogar y Construcción', 'Misceláneos y Courier',
+]
 
 // Helper: construye un <select> con opciones a partir de un arreglo.
 function selectDe(id, opciones) {
@@ -24,12 +29,12 @@ export function renderEta(contenedor) {
       <p class="subtitulo">Estimación inteligente del tránsito hacia aduanas venezolanas.</p>
       <div class="dos-columnas">                                  <!-- rejilla 2 columnas -->
         <div class="tarjeta">                                     <!-- formulario -->
-          <div class="campo"><label>Origen Internacional</label>${selectDe('eta-origen', ORIGENES)}</div>
-          <div class="campo"><label>Vía de Transporte</label>${selectDe('eta-via', VIAS)}</div>
-          <div class="campo"><label>Aduana de Ingreso</label>${selectDe('eta-aduana', ADUANAS)}</div>
-          <div class="campo"><label>Operador Logístico</label>${selectDe('eta-operador', OPERADORES)}</div>
-          <div class="campo"><label>Tipo de Mercancía</label>${selectDe('eta-carga', CARGAS)}</div>
-          <div class="campo"><label>Fecha Estimada de Envío</label><input type="date" id="eta-fecha" /></div>
+          <div class="campo"><label for="eta-origen">Origen Internacional</label>${selectDe('eta-origen', ORIGENES)}</div>
+          <div class="campo"><label for="eta-via">Vía de Transporte</label>${selectDe('eta-via', VIAS)}</div>
+          <div class="campo"><label for="eta-aduana">Aduana de Ingreso</label><select id="eta-aduana"></select></div>
+          <div class="campo"><label for="eta-operador">Operador Logístico</label><select id="eta-operador"></select></div>
+          <div class="campo"><label for="eta-carga">Tipo de Mercancía</label>${selectDe('eta-carga', CARGAS)}</div>
+          <div class="campo"><label for="eta-fecha">Fecha Estimada de Envío</label><input type="date" id="eta-fecha" /></div>
           <button class="boton boton-primario" id="eta-btn" style="width:100%">Calcular Predicción</button>
         </div>
         <div style="display:flex;flex-direction:column;gap:14px">  <!-- columna derecha -->
@@ -41,7 +46,7 @@ export function renderEta(contenedor) {
           </div>
           <div class="tarjeta">                                   <!-- grafico historico -->
             <div class="kpi-lbl">Promedio histórico por operador (según origen)</div>
-            <canvas id="eta-canvas" width="460" height="180" style="width:100%;margin-top:10px"></canvas>
+            <canvas id="eta-canvas" height="180" style="width:100%;margin-top:10px"></canvas>
           </div>
         </div>
       </div>
@@ -52,12 +57,25 @@ export function renderEta(contenedor) {
   const btn = document.getElementById('eta-btn')                  // boton calcular
   const canvas = document.getElementById('eta-canvas')            // lienzo del grafico
   const ctx = canvas.getContext('2d')                             // contexto 2D
+  const selVia = document.getElementById('eta-via')               // desplegable de via
+  const selAduana = document.getElementById('eta-aduana')         // desplegable de aduana
+  const selOperador = document.getElementById('eta-operador')     // desplegable de operador
 
-  // 3) Dibuja el grafico historico para el origen seleccionado.
+  // 3) Rellena aduana y operador segun la via elegida (para no ofrecer combinaciones que el modelo no vio).
+  function poblarPorVia() {
+    const via = selVia.value                                      // via actual
+    selAduana.innerHTML = ADUANAS_POR_VIA[via].map(o => `<option>${o}</option>`).join('')     // aduanas de esa via
+    selOperador.innerHTML = OPERADORES_POR_VIA[via].map(o => `<option>${o}</option>`).join('') // operadores de esa via
+  }
+  selVia.onchange = poblarPorVia                                  // al cambiar la via, repuebla
+  poblarPorVia()                                                  // poblado inicial
+
+  // 4) Dibuja el grafico historico para el origen seleccionado (canvas dimensionado a su ancho real, nitido).
   async function actualizarGrafico() {
     const origen = document.getElementById('eta-origen').value    // origen elegido
     try {
       const datos = await api.etaHistorico(origen)                // [{operador, dias_promedio}]
+      canvas.width = canvas.clientWidth || 460                    // ancho real segun el layout (nitidez 1:1)
       ctx.clearRect(0, 0, canvas.width, canvas.height)            // limpia el lienzo
       if (!datos.length) return                                   // sin datos, no dibuja
       const maxY = Math.max(...datos.map(d => d.dias_promedio))    // valor maximo para escalar
@@ -77,7 +95,7 @@ export function renderEta(contenedor) {
   document.getElementById('eta-origen').onchange = actualizarGrafico // redibuja al cambiar origen
   actualizarGrafico()                                             // dibujo inicial
 
-  // 4) Ejecuta la prediccion al pulsar el boton.
+  // 5) Ejecuta la prediccion al pulsar el boton.
   btn.onclick = async () => {
     btn.disabled = true                                           // evita doble clic
     try {
@@ -85,11 +103,12 @@ export function renderEta(contenedor) {
       const mes = fechaStr ? Number(fechaStr.split('-')[1]) : 6     // mes del envio (por defecto junio)
       const datos = {                                              // arma el cuerpo para el sidecar
         origen: document.getElementById('eta-origen').value,
-        via: document.getElementById('eta-via').value,
-        aduana: document.getElementById('eta-aduana').value,
-        operador: document.getElementById('eta-operador').value,
+        via: selVia.value,
+        aduana: selAduana.value,
+        operador: selOperador.value,
         carga: document.getElementById('eta-carga').value,
         mes,
+        usuario: estado.sesion.usuario,                            // usuario activo (o null): el backend lo guarda en historial
       }
       const r = await api.predictEta(datos)                        // pide la prediccion
       animarNumero(document.getElementById('eta-total'), 0, Math.max(0.5, r.dias_total), { decimales: 1 }) // total
@@ -118,7 +137,7 @@ export function renderEta(contenedor) {
       })
 
       if (estado.sesion.usuario) {                                  // si hay sesion iniciada
-        mostrarToast('Predicción registrada en tu historial.')      // (el backend guarda via su logica)
+        mostrarToast('Predicción guardada en tu historial.')        // el backend ya la persistio (ver /predict-eta)
       }
     } catch (e) {
       mostrarToast(e.message, 'error')                              // muestra el error del sidecar

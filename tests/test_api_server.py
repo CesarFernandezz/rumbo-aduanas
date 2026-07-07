@@ -25,6 +25,12 @@ def test_login_credenciales_malas_devuelve_ok_false():  # login con credenciales
     r = client.post("/login", json={"username": "nadie_zzz", "password": "malaclave"})  # usuario que no existe
     assert r.json()["ok"] is False                       # debe rechazar el acceso
 
+def test_login_usuario_semilla_funciona():               # el login real del admin semilla debe funcionar (no crashear)
+    # Usa el context manager para disparar el evento startup -> crea/siembra la BD (admin hasheado) sin entrenar el modelo.
+    with TestClient(app) as c:                            # 'with' dispara @app.on_event('startup')
+        r = c.post("/login", json={"username": "admin", "password": "admin123"})  # credenciales semilla documentadas
+        assert r.json()["ok"] is True                    # deben ser validas (regresion del bug de hash en texto plano)
+
 def test_predict_eta_con_modelo_stub():               # prueba la estructura de la prediccion sin entrenar de verdad
     class ModeloFalso:                                # modelo simulado que siempre predice 10 dias
         def predict(self, X):                         # imita la interfaz .predict de sklearn

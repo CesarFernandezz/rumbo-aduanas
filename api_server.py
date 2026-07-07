@@ -65,6 +65,7 @@ class LandedIn(BaseModel):                            # esquema del cuerpo JSON 
     tasa: float = 0                                   # tasa aduanera de servicio (%)
     iva: float = 16                                   # IVA de importacion (%)
     gastos: float = 0                                 # gastos locales/portuarios
+    usuario: str | None = None                        # usuario activo (opcional) para guardar en historial
 
 @app.get("/health")                                   # endpoint de salud que consulta el splash de Electron
 def health():                                         # devuelve el estado actual del motor de ML
@@ -73,7 +74,10 @@ def health():                                         # devuelve el estado actua
 @app.post("/login")                                   # endpoint de autenticacion
 def login(datos: LoginIn):                            # recibe usuario y clave
     from src.auth import verificar_usuario            # import perezoso (usa bcrypt)
-    ok, id_u, rol = verificar_usuario(datos.username, datos.password)  # verifica contra la DB
+    try:                                              # protege contra hashes mal formados (ej. semilla en texto plano)
+        ok, id_u, rol = verificar_usuario(datos.username, datos.password)  # verifica contra la DB
+    except Exception:                                 # bcrypt lanza si el hash almacenado no es valido
+        ok, id_u, rol = False, None, None             # se trata como credencial invalida, NO como error 500
     return {"ok": ok, "id": id_u, "rol": rol}         # devuelve resultado y datos de sesion
 
 @app.post("/register")                                # endpoint de registro de nuevos operadores
@@ -97,36 +101,41 @@ def register(datos: RegisterIn):                      # recibe usuario, clave y 
 @app.post("/landed-cost")                             # endpoint de la calculadora financiera
 def landed(datos: LandedIn):                          # recibe y valida el cuerpo con Pydantic
     from src.landed_cost import calcular_landed_cost  # import perezoso de la funcion del backend
-    return calcular_landed_cost(                      # llama a la funcion existente y devuelve su dict tal cual
+    r = calcular_landed_cost(                         # llama a la funcion existente
         datos.fob, datos.flete, datos.seguro,         # componentes CIF
         datos.arancel, datos.tasa, datos.iva,         # porcentajes de impuestos
         datos.gastos,                                 # gastos locales
     )
+    if datos.usuario:                                 # si hay sesion, guarda la operacion en el historial real
+        try:
+            from src.database import guardar_en_historial
+            guardar_en_historial(datos.usuario, "CALCULO_FINANCIERO",
+                                 f"FOB: ${datos.fob:,.0f} | Total: ${r['landed_cost']:,.2f}")
+        except Exception:                             # historial best-effort; no romper el calculo
+            pass
+    return r                                           # devuelve el desglose completo
 
-# Distancias logisticas (copiadas de app.py para reproducir la misma logica de ETA sin tocar el backend).
+# Distancias (km) por VIA y ORIGEN, EXACTAMENTE como en el entrenamiento (src/generar_data_logistica.py).
+# Antes la tabla solo tenia rutas maritimas de 3 origenes, por lo que toda prediccion "Aerea" (y los origenes
+# Veracruz/Panama) caian a un valor fijo de 4000 km -> prediccion silenciosamente erronea. Ahora coincide con el modelo.
 DISTANCIAS_LOGISTICAS = {
-    "Shanghái": {"Puerto Cabello": {"Marítimo": 15100, "La Guaira": 15150, "Maiquetía": 15150},
-                 "La Guaira": {"Marítimo": 15150, "Puerto Cabello": 15100, "Maiquetía": 15150},
-                 "Maiquetía": {"Marítimo": 15150, "Puerto Cabello": 15100, "La Guaira": 15150}},
-    "Miami": {"Puerto Cabello": {"Marítimo": 1980, "La Guaira": 2050, "Maiquetía": 2050},
-              "La Guaira": {"Marítimo": 2050, "Puerto Cabello": 1980, "Maiquetía": 2050},
-              "Maiquetía": {"Marítimo": 2050, "Puerto Cabello": 1980, "La Guaira": 2050}},
-    "Róterdam": {"Puerto Cabello": {"Marítimo": 7400, "La Guaira": 7350, "Maiquetía": 7350},
-                 "La Guaira": {"Marítimo": 7350, "Puerto Cabello": 7400, "Maiquetía": 7350},
-                 "Maiquetía": {"Marítimo": 7350, "Puerto Cabello": 7400, "La Guaira": 7350}},
+    "Marítimo": {"Shanghái": 15100, "Miami": 1980, "Róterdam": 7400, "Veracruz": 2600, "Panamá": 1050},
+    "Aéreo":    {"Shanghái": 15900, "Miami": 2100, "Róterdam": 8050, "Veracruz": 3150, "Panamá": 1280},
 }
 
 class EtaIn(BaseModel):                               # cuerpo JSON de /predict-eta
     origen: str                                       # ciudad de origen internacional
-    via: str                                          # via de transporte (Maritimo/Aereo)
+    via: str                                          # via de transporte (Marítimo/Aéreo)
     aduana: str                                       # aduana de ingreso en Venezuela
-    operador: str                                     # operador logistico / naviera
+    operador: str                                     # operador logistico / naviera / aerolinea
     carga: str                                        # tipo de mercancia
     mes: int                                          # mes estimado de envio (1-12)
+    usuario: str | None = None                        # usuario activo (opcional) para guardar en historial
 
 class VuceIn(BaseModel):                              # cuerpo JSON de /vuce
     regimen: str                                      # IMPORTACIÓN o EXPORTACIÓN
     consulta: str                                     # descripcion de la mercancia/consulta
+    usuario: str | None = None                        # usuario activo (opcional) para guardar en historial
 
 class VucePdfIn(BaseModel):                           # cuerpo JSON de /vuce-pdf
     regimen: str                                      # regimen aduanero
@@ -140,8 +149,8 @@ def predict_eta(datos: EtaIn):                        # recibe los parametros de
         raise HTTPException(503, "El modelo ETA aun se esta entrenando. Intenta en unos segundos.")
     modelos = MOTOR["modelos"]                         # modelos entrenados (o falsos en test)
     encoders = MOTOR["encoders"]                       # codificadores de categorias
-    # Distancia segun tabla; si la combinacion no existe (ej. Aereo), usa 4000 km por defecto (igual que app.py).
-    distancia = DISTANCIAS_LOGISTICAS.get(datos.origen, {}).get(datos.aduana, {}).get(datos.via, 4000)
+    # Distancia real segun via + origen (coincide con el entrenamiento); 4000 solo si llega algo inesperado.
+    distancia = DISTANCIAS_LOGISTICAS.get(datos.via, {}).get(datos.origen, 4000)
     try:                                              # codificar las categorias con los encoders del modelo
         oc = encoders["origen"].transform([datos.origen])[0]            # codigo del origen
         ac = encoders["aduana_destino"].transform([datos.aduana])[0]    # codigo de la aduana
@@ -152,13 +161,21 @@ def predict_eta(datos: EtaIn):                        # recibe los parametros de
         raise HTTPException(400, "Alguna opcion seleccionada no existe en los datos historicos del modelo.")
     cols = ["origen", "aduana_destino", "via", "operador", "tipo_carga", "mes", "distancia_km"]  # orden esperado
     X = pd.DataFrame([[oc, ac, vc, pc, cc, datos.mes, distancia]], columns=cols)  # fila de entrada para el modelo
-    return {                                          # desglose completo (los 4 sub-modelos que app.py no usaba)
+    resultado = {                                     # desglose completo (los 4 sub-modelos que app.py no usaba)
         "dias_total": float(modelos["total"].predict(X)[0]),      # dias totales estimados
         "dias_transito": float(modelos["transito"].predict(X)[0]),# dias de transito maritimo/aereo
         "dias_fondeo": float(modelos["fondeo"].predict(X)[0]),    # dias de espera/fondeo en puerto
         "dias_aduana": float(modelos["aduana"].predict(X)[0]),    # dias de nacionalizacion en aduana
         "distancia_km": distancia,                                # distancia usada en el calculo
     }
+    if datos.usuario:                                 # si hay sesion iniciada, guarda la operacion en el historial real
+        try:
+            from src.database import guardar_en_historial   # import perezoso del backend
+            guardar_en_historial(datos.usuario, "PREDICTOR_ETA",
+                                 f"Ruta: {datos.origen} -> {datos.aduana} | ETA: {resultado['dias_total']:.1f} dias")
+        except Exception:                             # el historial es best-effort; nunca romper la prediccion
+            pass
+    return resultado                                  # devuelve el desglose
 
 @app.get("/eta-historico")                            # datos para el grafico de barras por operador
 def eta_historico(origen: str):                       # recibe el origen por query string
@@ -177,10 +194,20 @@ def vuce(datos: VuceIn):                              # recibe regimen y consult
     except Exception as e:                            # si las dependencias pesadas no estan instaladas
         raise HTTPException(503, f"Modulo VUCE no disponible: {e}. Instala sentence-transformers y faiss-cpu.")  # error 503
     html = consultar_asesor_vuce(datos.regimen, datos.consulta)  # genera el dictamen HTML
+    if datos.usuario:                                 # si hay sesion, guarda la consulta en el historial real
+        try:
+            from src.database import guardar_en_historial
+            guardar_en_historial(datos.usuario, "ASESOR_VUCE", f"{datos.regimen} | {datos.consulta[:40]}")
+        except Exception:                             # historial best-effort; no romper la consulta
+            pass
     return {"html": html}                             # lo devuelve al front para mostrarlo
 
 @app.post("/vuce-pdf")                                # endpoint que exporta el dictamen a PDF
 def vuce_pdf(datos: VucePdfIn):                       # recibe el dictamen y la ruta destino
+    # La ruta la elige el usuario en el dialogo nativo (proceso confiable). Aun asi, validamos que sea un .pdf
+    # como defensa en profundidad (evita usar el endpoint para escribir archivos con otra extension).
+    if not datos.ruta.lower().endswith(".pdf"):       # solo permitimos escribir archivos PDF
+        raise HTTPException(400, "La ruta de guardado debe terminar en .pdf")
     from src.vuce_pdf import generar_pdf_dictamen     # import perezoso (reportlab)
     generar_pdf_dictamen(datos.regimen, datos.consulta, datos.html, datos.ruta)  # escribe el PDF en disco
     return {"ok": True, "ruta": datos.ruta}           # confirma la ruta guardada
@@ -188,7 +215,15 @@ def vuce_pdf(datos: VucePdfIn):                       # recibe el dictamen y la 
 @app.get("/dashboard-summary")                        # KPIs agregados REALES para la pantalla de Inicio
 def dashboard_summary():                              # todos los indicadores salen del historico real (CSV)
     resumen = {}                                      # acumulador de resultados
-    df = pd.read_csv(RUTA_CSV)                         # carga el historico completo (miles de envios reales)
+    try:                                              # el CSV podria faltar o venir vacio
+        df = pd.read_csv(RUTA_CSV)                     # carga el historico completo (miles de envios reales)
+    except Exception:                                 # archivo ausente o ilegible
+        df = None
+    if df is None or df.empty:                        # sin datos: devolvemos un resumen en cero (no un 500)
+        return {"registros_historicos": 0, "eta_promedio": 0, "dias_transito_promedio": 0,
+                "dias_aduana_promedio": 0, "pct_a_tiempo": 0, "por_aduana": [], "por_via": [],
+                "operador_mas_rapido": "—", "top_carga": "—",
+                "por_mes": [{"mes": m, "envios": 0} for m in range(1, 13)]}
     resumen["registros_historicos"] = int(len(df))    # total de envios historicos analizados
     prom = float(df["dias_reales"].mean())            # promedio general de dias reales de trayecto
     resumen["eta_promedio"] = round(prom, 1)          # ETA promedio (dias)

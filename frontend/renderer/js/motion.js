@@ -91,7 +91,7 @@ export function animarGauge(elFill, radio, porcentaje) {
   const objetivo = circunferencia * (1 - Math.min(1, Math.max(0, porcentaje / 100))) // offset segun %
   elFill.style.strokeDashoffset = String(circunferencia) // arranca vacio (offset = circunferencia)
   requestAnimationFrame(() => {                      // en el siguiente fotograma dispara la transicion CSS
-    elFill.style.strokeDashoffset = movimientoReducido() ? String(objetivo) : String(objetivo) // llena
+    elFill.style.strokeDashoffset = String(objetivo) // llena el arco (la transicion CSS se desactiva sola con motion reducido)
   })
 }
 
@@ -104,9 +104,10 @@ export function animarBarra(elSpan, porcentaje) {
 // Dibuja una polilinea "dibujandose" sobre un canvas 2D (para el grafico historico del modulo ETA).
 export function dibujarLineaCanvas(ctx, puntos, color) {
   if (!puntos.length) return                         // si no hay puntos, nada que dibujar
-  let progreso = 0                                   // cuantos segmentos se han dibujado (0..1)
+  const reducido = movimientoReducido()              // ¿el usuario pidio menos movimiento?
+  let progreso = reducido ? 1 : 0                    // si se reduce el motion, se dibuja la linea COMPLETA de una
   function paso() {                                  // fotograma de la animacion de dibujo
-    progreso = Math.min(1, progreso + 0.03)          // avanza el trazo
+    if (!reducido) progreso = Math.min(1, progreso + 0.03) // avanza el trazo solo si hay animacion
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height) // limpia para redibujar
     ctx.beginPath()                                  // inicia la linea
     const total = puntos.length - 1                  // segmentos totales
@@ -116,7 +117,7 @@ export function dibujarLineaCanvas(ctx, puntos, color) {
     ctx.strokeStyle = color                          // color de la linea
     ctx.lineWidth = 3                                // grosor
     ctx.stroke()                                     // traza
-    if (progreso < 1 && !movimientoReducido()) requestAnimationFrame(paso) // continua si falta y hay motion
+    if (progreso < 1) requestAnimationFrame(paso)    // continua hasta completar (con motion reducido ya es 1)
   }
   paso()                                             // arranca el dibujo
 }

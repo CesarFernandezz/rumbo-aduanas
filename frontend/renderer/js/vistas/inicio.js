@@ -42,7 +42,11 @@ function dibujarBarrasMes(canvas, datos) {
   requestAnimationFrame(frame)                               // arranca el dibujo
 }
 
+// Guarda el listener de resize activo para poder retirarlo al recargar la vista (evita fugas al navegar).
+let _resizeInicio = null
+
 export async function renderInicio(contenedor) {
+  if (_resizeInicio) { window.removeEventListener('resize', _resizeInicio); _resizeInicio = null } // limpia el de una carga previa
   // 1) Estructura HTML del dashboard. Las cifras arrancan en 0 y se animan con datos reales al cargar.
   contenedor.innerHTML = `
     <div class="inicio-grid">                                <!-- rejilla principal -->
@@ -140,7 +144,12 @@ export async function renderInicio(contenedor) {
     animarGauge(document.getElementById('gauge-vuce'), 50, d.pct_a_tiempo)   // llena el aro con el % real
 
     // Grafico del HERO: barras reales de volumen de envios por mes.
-    dibujarBarrasMes(document.getElementById('hero-canvas'), d.por_mes)      // dibuja las 12 barras animadas
+    const canvasHero = document.getElementById('hero-canvas')               // lienzo del grafico
+    dibujarBarrasMes(canvasHero, d.por_mes)                                 // dibuja las 12 barras animadas
+    // Redibuja el grafico (con "debounce") cuando cambia el tamaño de la ventana, para que no se vea borroso.
+    let tRedibujo = null
+    _resizeInicio = () => { clearTimeout(tRedibujo); tRedibujo = setTimeout(() => dibujarBarrasMes(canvasHero, d.por_mes), 150) }
+    window.addEventListener('resize', _resizeInicio)                         // escucha el redimensionado
   } catch (e) {                                                              // si el sidecar fallo
     mostrarToast('No se pudieron cargar los indicadores.', 'error')          // avisa sin romper la vista
   }
