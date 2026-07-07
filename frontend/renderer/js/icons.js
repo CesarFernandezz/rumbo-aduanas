@@ -26,6 +26,14 @@ export const iconos = {
   chevron: svg('<path d="m9 6 6 6-6 6"/>'),
   // Descargar: exportar el dictamen a PDF.
   descarga: svg('<path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M5 21h14"/>'),
+  // Candado: campo de contraseña.
+  lock: svg('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'),
+  // Edificio: campo de empresa / organizacion.
+  empresa: svg('<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 8h.01M12 8h.01M15 8h.01M9 12h.01M12 12h.01M15 12h.01"/><path d="M10 21v-4h4v4"/>'),
+  // Ojo: mostrar la contraseña.
+  eye: svg('<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
+  // Ojo tachado: ocultar la contraseña.
+  eyeOff: svg('<path d="M9.9 4.2A9.5 9.5 0 0 1 12 4c6 0 10 8 10 8a18 18 0 0 1-2.4 3.4"/><path d="M6.6 6.6A18 18 0 0 0 2 12s4 8 10 8a9.5 9.5 0 0 0 4-.9"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="m3 3 18 18"/>'),
   // Contenedor de carga: isotipo de la marca "Rumbo" (aduana / comercio).
   contenedor: svg('<rect x="3" y="8" width="18" height="9" rx="1"/><path d="M8 8v9"/><path d="M12 8v9"/><path d="M16 8v9"/>'),
 }

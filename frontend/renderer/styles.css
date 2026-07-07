@@ -231,3 +231,32 @@ body {
 .dos-columnas { display:grid; grid-template-columns:4fr 6fr; gap:16px; align-items:start; } /* form + resultado */
 @media (max-width:980px){ .dos-columnas { grid-template-columns:1fr; } } /* apila en ventanas angostas */
 .bar-val { min-width:48px; text-align:right; }                  /* alinea los valores del desglose */
+
+/* ---------- AUTENTICACION (login / crear cuenta) ---------- */
+.auth-wrap { min-height:100%; display:flex; align-items:center; justify-content:center; padding:28px; } /* centra la tarjeta */
+.auth-card { display:grid; grid-template-columns:0.9fr 1.1fr; width:100%; max-width:880px; padding:0; overflow:hidden; } /* tarjeta partida */
+.auth-brand {                                      /* panel de marca (izquierda) con acento calido */
+  padding:38px 34px; display:flex; flex-direction:column; gap:20px; justify-content:center;
+  background:linear-gradient(160deg, rgba(244,199,123,.16), rgba(132,210,197,.05) 60%, transparent);
+}
+.auth-badge { width:64px; height:64px; border-radius:18px; display:grid; place-items:center; color:var(--bg-0);
+  background:linear-gradient(135deg, var(--ambar), var(--durazno)); }   /* isotipo grande */
+.auth-badge svg { width:36px; height:36px; }
+.auth-marca { font-size:34px; font-weight:800; letter-spacing:.5px; }   /* wordmark Rumbo */
+.auth-features { list-style:none; display:flex; flex-direction:column; gap:12px; margin-top:4px; } /* beneficios */
+.auth-features li { display:flex; align-items:center; gap:10px; color:var(--tinta); font-size:14px; }
+.auth-features li svg { width:18px; height:18px; color:var(--ambar); flex:none; }
+.auth-estado { margin-top:8px; }
+.auth-estado a { color:var(--ambar); text-decoration:none; }
+.auth-form { padding:38px 34px; display:flex; flex-direction:column; }  /* panel del formulario (derecha) */
+.seg { display:flex; background:var(--bg-1); border-radius:12px; padding:4px; gap:4px; margin:14px 0 18px; } /* pestañas */
+.seg button { flex:1; border:none; background:transparent; color:var(--tinta-suave); font-family:inherit; font-size:14px;
+  padding:10px; border-radius:9px; cursor:pointer; transition:background .2s ease, color .2s ease; }
+.seg button.activo { background:var(--bg-2); color:var(--tinta); }       /* pestaña activa */
+.campo-icono { position:relative; display:flex; align-items:center; }    /* campo con icono a la izquierda */
+.campo-icono > svg { position:absolute; left:12px; width:18px; height:18px; color:var(--tinta-suave); pointer-events:none; }
+.campo-icono input { width:100%; padding-left:40px; padding-right:40px; } /* deja espacio para icono y ojo */
+.ojo { position:absolute; right:8px; border:none; background:transparent; color:var(--tinta-suave); cursor:pointer;
+  padding:6px; display:grid; place-items:center; }                       /* boton mostrar/ocultar contraseña */
+.ojo svg { width:18px; height:18px; }
+@media (max-width:760px){ .auth-card { grid-template-columns:1fr; } .auth-brand { display:none; } } /* apila y oculta marca en angosto */
