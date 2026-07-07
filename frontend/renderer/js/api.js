@@ -2,11 +2,25 @@
 
 const BASE = 'http://127.0.0.1:8000'                 // el sidecar escucha aqui (mismo puerto que main.js)
 
+// Token de autenticacion (lo entrega el proceso principal via preload). Se pide una sola vez y se cachea.
+let _token = null
+async function obtenerToken() {
+  if (_token) return _token                          // ya lo tenemos en cache
+  try { _token = await window.nativo.obtenerToken() } // lo pedimos al proceso principal
+  catch (e) { _token = null }                        // fuera de Electron (dev/test) no hay token; el sidecar tampoco lo exige
+  return _token
+}
+
 // Helper interno: hace una peticion, valida el codigo HTTP y devuelve el JSON.
 async function pedir(ruta, opciones = {}) {
+  const token = await obtenerToken()                 // obtiene el token (o null)
   const r = await fetch(BASE + ruta, {               // realiza la peticion
-    headers: { 'Content-Type': 'application/json' }, // enviamos/recibimos JSON
     ...opciones,                                     // metodo y cuerpo si aplican
+    headers: {                                       // cabeceras: JSON + token de autenticacion
+      'Content-Type': 'application/json',
+      ...(token ? { 'X-Rumbo-Token': token } : {}),  // solo se envia si existe
+      ...(opciones.headers || {}),                   // permite sobreescribir si hiciera falta
+    },
   })
   if (!r.ok) {                                        // si el servidor respondio con error (4xx/5xx)
     let detalle = r.status                            // por defecto, el codigo

@@ -16,13 +16,29 @@ RUTA_CSV = os.path.join(os.path.dirname(__file__), "data", "historico_envios.csv
 
 app = FastAPI(title="Rumbo Sidecar")                  # instancia principal de la API
 
-# CORS abierto en localhost: el renderer de Electron carga como file:// y necesita permiso para llamar.
+# CORS: el renderer de Electron carga como file:// (origin 'null') y necesita permiso para el preflight.
+# La proteccion real NO es el CORS (que debe ser permisivo para file://) sino el token por-arranque de abajo.
 app.add_middleware(
     CORSMiddleware,                                   # middleware de control de origen cruzado
     allow_origins=["*"],                             # permitir cualquier origen (solo escuchamos en 127.0.0.1)
     allow_methods=["*"],                             # permitir todos los metodos HTTP
-    allow_headers=["*"],                             # permitir todas las cabeceras
+    allow_headers=["*"],                             # permitir todas las cabeceras (incl. X-Rumbo-Token)
 )
+
+# Token de autenticacion por-arranque: main.js genera un secreto aleatorio y lo pasa por la variable RUMBO_TOKEN.
+# Solo nuestro renderer (via preload/IPC) conoce el token, asi que una web abierta en el navegador NO puede
+# usar el sidecar aunque el CORS sea permisivo. Si RUMBO_TOKEN no esta definido (tests o ejecucion manual del
+# sidecar), no se exige token -> el desarrollo y las pruebas siguen funcionando sin cambios.
+TOKEN_ESPERADO = os.getenv("RUMBO_TOKEN")             # secreto esperado (o None si no se configuro)
+
+@app.middleware("http")                               # middleware que valida el token en cada peticion
+async def verificar_token(request, call_next):
+    # /health y el preflight OPTIONS quedan libres (el splash consulta /health antes de tener el token).
+    if TOKEN_ESPERADO and request.method != "OPTIONS" and request.url.path != "/health":
+        if request.headers.get("x-rumbo-token") != TOKEN_ESPERADO:  # token ausente o incorrecto
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"detail": "No autorizado"}, status_code=401)  # se rechaza la peticion
+    return await call_next(request)                   # token valido (o no exigido): continua
 
 # Estado global del "motor" de Machine Learning. Empieza 'entrenando' y pasa a 'listo' cuando el modelo termina.
 MOTOR = {"estado": "entrenando", "modelos": None, "encoders": None}

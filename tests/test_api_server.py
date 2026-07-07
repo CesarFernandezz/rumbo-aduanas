@@ -12,6 +12,18 @@ def test_health_devuelve_estado():                    # verifica que /health res
     assert r.status_code == 200                       # debe responder 200 OK
     assert "estado" in r.json()                       # el JSON debe incluir la clave 'estado'
 
+def test_token_requerido_cuando_esta_configurado():   # si hay RUMBO_TOKEN, se exige en cada peticion (menos /health)
+    api_server.TOKEN_ESPERADO = "secreto-de-prueba"   # simula que main.js configuro un token
+    try:
+        sin = client.post("/landed-cost", json={"fob": 1000})  # peticion SIN token
+        assert sin.status_code == 401                 # debe rechazarse
+        con = client.post("/landed-cost", json={"fob": 1000}, headers={"X-Rumbo-Token": "secreto-de-prueba"})  # CON token
+        assert con.status_code == 200                 # debe aceptarse
+        salud = client.get("/health")                 # /health queda libre (el splash lo usa antes del token)
+        assert salud.status_code == 200
+    finally:
+        api_server.TOKEN_ESPERADO = None              # restaura para no afectar otros tests
+
 def test_landed_cost_calcula_cif_y_total():           # valida la matematica del landed cost real del backend
     r = client.post("/landed-cost", json={            # envia los parametros financieros
         "fob": 10000, "flete": 1500, "seguro": 300,   # base FOB + flete + seguro
