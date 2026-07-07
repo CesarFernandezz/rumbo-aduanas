@@ -46,4 +46,7 @@ export const api = {
   vucePdf: (datos) => postJson('/vuce-pdf', datos), // exportar dictamen a PDF (datos={regimen,consulta,html,ruta})
   landedCost: (datos) => postJson('/landed-cost', datos), // calculadora financiera
   dashboardSummary: () => pedir('/dashboard-summary'), // KPIs de la pantalla de Inicio
+  historial: (usuario, opts = {}) => pedir('/historial?usuario=' + encodeURIComponent(usuario)  // operaciones reales del usuario
+    + (opts.limite ? '&limite=' + opts.limite : '')
+    + (opts.modulo ? '&modulo=' + encodeURIComponent(opts.modulo) : '')),
 }

@@ -87,3 +87,15 @@ def test_dashboard_summary_tiene_kpis():              # el resumen del Inicio de
     assert "dias_aduana_promedio" in d                  # promedio de dias en aduana (real)
     assert 0 <= d["pct_a_tiempo"] <= 100                # % de puntualidad, en rango valido
     assert len(d["por_mes"]) == 12                      # volumen por mes: 12 entradas (enero..diciembre)
+
+def test_historial_devuelve_lista():                  # el historial de operaciones reales debe devolver una lista
+    r = client.get("/historial?usuario=admin&limite=3")  # operaciones recientes del usuario admin
+    assert r.status_code == 200                        # nunca 500 (aun si no hay filas)
+    assert isinstance(r.json(), list)                  # siempre una lista (posiblemente vacia)
+
+def test_landed_guarda_y_se_recupera_del_historial():  # el bucle real: calcular -> se guarda -> se recupera
+    with TestClient(app) as c:                         # 'with' dispara startup (crea las tablas)
+        c.post("/landed-cost", json={"fob": 5000, "usuario": "admin"})  # calcula un landed cost como 'admin'
+        h = c.get("/historial?usuario=admin&modulo=CALCULO_FINANCIERO&limite=1").json()  # busca su ultimo calculo
+        assert len(h) >= 1                             # debe existir la operacion recien guardada
+        assert "Total" in h[0]["descripcion"]          # con el formato "FOB: ... | Total: ..." (dato real procesado)

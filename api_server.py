@@ -263,3 +263,21 @@ def dashboard_summary():                              # todos los indicadores sa
     resumen["por_mes"] = [{"mes": m, "envios": int(conteo_mes.get(m, 0))}  # lista ordenada de enero (1) a diciembre (12)
                           for m in range(1, 13)]
     return resumen                                    # devuelve el resumen completo con datos reales
+
+@app.get("/historial")                                # operaciones REALES que la app ha procesado para un usuario
+def historial(usuario: str, limite: int = 5, modulo: str | None = None):  # usuario obligatorio; filtro opcional por modulo
+    try:                                              # protege ante tabla ausente u otros fallos de DB
+        from src.database import conectar_db          # import perezoso de la conexion
+        conn = conectar_db()                          # abre SQLite
+        cur = conn.cursor()                           # cursor de consulta
+        if modulo:                                    # si se pide un modulo concreto (ej. CALCULO_FINANCIERO)
+            cur.execute("SELECT modulo, descripcion, fecha FROM historial_operaciones_rapidas "
+                        "WHERE username = ? AND modulo = ? ORDER BY id DESC LIMIT ?", (usuario, modulo, limite))
+        else:                                         # si no, todas las operaciones recientes
+            cur.execute("SELECT modulo, descripcion, fecha FROM historial_operaciones_rapidas "
+                        "WHERE username = ? ORDER BY id DESC LIMIT ?", (usuario, limite))
+        filas = cur.fetchall()                        # obtiene las filas
+        conn.close()                                  # cierra la conexion
+        return [{"modulo": m, "descripcion": d, "fecha": f} for m, d, f in filas]  # serializa el historial real
+    except Exception:                                 # ante cualquier error de DB
+        return []                                     # devolvemos vacio (nunca un 500 que rompa el Inicio)

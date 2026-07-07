@@ -5,6 +5,7 @@ import { api } from '../api.js'                               // datos del sidec
 import { animarNumero, animarGauge, mostrarToast, movimientoReducido } from '../motion.js' // animaciones
 import { router } from '../router.js'                         // para enlazar a los modulos
 import { iconos } from '../icons.js'                          // iconos SVG (reemplazan emojis)
+import { estado } from '../estado.js'                         // sesion (para mostrar la actividad real del usuario)
 
 // Dibuja un grafico de barras REAL: volumen de envios por mes (crecen con animacion suave).
 function dibujarBarrasMes(canvas, datos) {
@@ -78,12 +79,10 @@ export async function renderInicio(contenedor) {
           </div>
         </button>
 
-        <div class="tarjeta mini" role="button" tabindex="0" id="card-landed"> <!-- div (no button): contiene un input, invalido anidar interactivos en un button -->
+        <button class="tarjeta mini" id="card-landed">        <!-- tarjeta inferior central: Landed Cost (dato real del historial) -->
           <div class="mini-top"><span>Landed Cost</span></div>
-          <div class="mini-cifra"><span class="kpi-lbl">Simulación (arancel 12% · IVA 16%)</span></div>
-          <input type="range" min="1000" max="50000" value="10000" class="slider" id="mini-slider" />
-          <div class="mini-cifra"><span class="kpi-num" id="mini-total">0</span><span class="kpi-lbl"> total puesto en almacén</span></div>
-        </div>
+          <div id="landed-ultimo"><span class="kpi-lbl">…</span></div>   <!-- ultimo calculo REAL del usuario (o aviso) -->
+        </button>
 
         <button class="tarjeta mini" id="card-vuce">          <!-- tarjeta inferior derecha: VUCE (gauge) -->
           <div class="mini-top"><span>Puntualidad histórica</span></div>
@@ -101,28 +100,28 @@ export async function renderInicio(contenedor) {
   // 2) Enlaces de navegacion: cada tarjeta lleva a su modulo.
   document.getElementById('card-eta').onclick = () => router.ir('eta')       // abre ETA
   document.getElementById('card-vuce').onclick = () => router.ir('vuce')     // abre VUCE
-  document.getElementById('card-landed').onclick = (e) => {                  // abre Landed salvo al mover el slider
-    if (e.target.id !== 'mini-slider') router.ir('landed')                   // evita navegar al arrastrar
-  }
-  document.getElementById('card-landed').onkeydown = (e) => {                // accesibilidad: activar con teclado (Enter/Espacio)
-    if ((e.key === 'Enter' || e.key === ' ') && e.target.id !== 'mini-slider') { e.preventDefault(); router.ir('landed') }
-  }
+  document.getElementById('card-landed').onclick = () => router.ir('landed') // abre Landed Cost
   document.getElementById('btn-nueva').onclick = () => router.ir('vuce')     // "Nueva consulta" -> VUCE
 
-  // 3) Slider tipo "dimmer": calcula el landed cost con el BACKEND REAL (no una formula falsa del cliente).
-  const slider = document.getElementById('mini-slider')                      // control deslizante
-  const elTotal = document.getElementById('mini-total')                      // cifra del total
-  let temporizador = null                                                    // para "debounce" del slider
-  async function recalcularMini() {
-    const fob = Number(slider.value)                                         // valor FOB elegido
+  // 3) Tarjeta Landed: muestra el ULTIMO cálculo REAL del usuario (del historial que la app procesa), sin inventar nada.
+  async function pintarUltimoLanded() {
+    const cont = document.getElementById('landed-ultimo')                    // contenedor del dato
+    if (!estado.sesion.usuario) {                                            // en modo invitado no hay actividad propia
+      cont.innerHTML = '<span class="kpi-lbl">Inicia sesión y calcula un landed cost para verlo aquí.</span>'
+      return
+    }
     try {
-      // Flete/seguro tipicos (10% y 1% del FOB) enviados a la funcion real calcular_landed_cost del backend.
-      const r = await api.landedCost({ fob, flete: fob * 0.10, seguro: fob * 0.01, arancel: 12, tasa: 1, iva: 16, gastos: 0 })
-      elTotal.textContent = '$' + Math.round(r.landed_cost).toLocaleString('es-VE') // muestra el total real
-    } catch (e) { /* si el sidecar falla, no rompemos el Inicio */ }
+      const h = await api.historial(estado.sesion.usuario, { modulo: 'CALCULO_FINANCIERO', limite: 1 }) // ultimo calculo real
+      if (!h.length) {                                                       // el usuario aun no ha calculado ninguno
+        cont.innerHTML = '<span class="kpi-lbl">Aún no has calculado un landed cost.</span>'
+        return
+      }
+      cont.innerHTML = `<div class="kpi-lbl">Tu último cálculo</div><div style="margin-top:6px;font-weight:700">${h[0].descripcion}</div>`
+    } catch (e) {
+      cont.innerHTML = '<span class="kpi-lbl">—</span>'                       // ante un fallo, no inventamos un valor
+    }
   }
-  slider.oninput = () => { clearTimeout(temporizador); temporizador = setTimeout(recalcularMini, 180) } // debounce
-  recalcularMini()                                                           // calculo inicial
+  pintarUltimoLanded()                                                       // pinta el dato real del historial
 
   // 4) Traer los KPIs REALES del sidecar y animarlos (count-up) + llenar la lista de aduanas + gauge real.
   try {
