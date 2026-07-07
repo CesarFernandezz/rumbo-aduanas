@@ -10,7 +10,7 @@ import { iconos } from '../icons.js'                              // iconos SVG
 function campo(id, etiqueta, tipo, icono, conOjo = false) {
   return `
     <div class="campo">
-      <label>${etiqueta}</label>
+      <label for="${id}">${etiqueta}</label>
       <div class="campo-icono">
         ${icono}                                                 <!-- icono decorativo del campo -->
         <input id="${id}" type="${tipo}" autocomplete="off" />   <!-- control de entrada -->

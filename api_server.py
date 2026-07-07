@@ -6,6 +6,7 @@
 import os                                             # variables de entorno y rutas
 import threading                                      # para entrenar el modelo ETA sin bloquear el arranque
 import pandas as pd                                   # lectura del CSV historico para KPIs y grafico
+from contextlib import asynccontextmanager            # para el manejador de ciclo de vida (lifespan) de FastAPI
 
 from fastapi import FastAPI, HTTPException            # framework web y utilidad para errores HTTP
 from fastapi.middleware.cors import CORSMiddleware    # permitir que el renderer (origin file://) llame al API
@@ -14,7 +15,18 @@ from pydantic import BaseModel                        # validacion/tipado de los
 # Ruta absoluta al CSV historico (mismo archivo que usa el backend). __file__ esta en la raiz del proyecto.
 RUTA_CSV = os.path.join(os.path.dirname(__file__), "data", "historico_envios.csv")
 
-app = FastAPI(title="Rumbo Sidecar")                  # instancia principal de la API
+@asynccontextmanager                                  # manejador de ciclo de vida (reemplaza al on_event, ya deprecado)
+async def lifespan(app):                              # se ejecuta una vez al arrancar el servidor real
+    from src.database import inicializar_tablas       # import perezoso del backend de base de datos
+    try:                                              # la creacion de tablas es idempotente pero la protegemos
+        inicializar_tablas()                          # asegura que existan las tablas y datos semilla
+    except Exception:                                 # si falla (ej. permisos), no impedir el arranque
+        pass                                          # continuamos: el resto de endpoints puede seguir
+    if os.getenv("LOGIIA_SKIP_TRAIN") != "1":         # en tests seteamos LOGIIA_SKIP_TRAIN=1 para no entrenar
+        threading.Thread(target=_entrenar_en_segundo_plano, daemon=True).start()  # entrena en hilo aparte
+    yield                                             # <-- aqui corre la aplicacion; despues del yield seria el cierre
+
+app = FastAPI(title="Rumbo Sidecar", lifespan=lifespan)  # instancia principal de la API (con lifespan)
 
 # CORS: el renderer de Electron carga como file:// (origin 'null') y necesita permiso para el preflight.
 # La proteccion real NO es el CORS (que debe ser permisivo para file://) sino el token por-arranque de abajo.
@@ -53,16 +65,6 @@ def _entrenar_en_segundo_plano():                     # entrena el modelo ETA un
     except Exception as e:                            # si algo falla durante el entrenamiento
         MOTOR["estado"] = "error"                     # marca estado de error
         MOTOR["error"] = str(e)                       # guarda el mensaje para diagnostico
-
-@app.on_event("startup")                              # se ejecuta una vez cuando arranca el servidor real
-def _startup():                                       # inicializa DB y dispara el entrenamiento en segundo plano
-    from src.database import inicializar_tablas       # import perezoso del backend de base de datos
-    try:                                              # la creacion de tablas es idempotente pero la protegemos
-        inicializar_tablas()                          # asegura que existan las tablas y datos semilla
-    except Exception:                                 # si falla (ej. permisos), no impedir el arranque
-        pass                                          # continuamos: el resto de endpoints puede seguir
-    if os.getenv("LOGIIA_SKIP_TRAIN") != "1":         # en tests seteamos LOGIIA_SKIP_TRAIN=1 para no entrenar
-        threading.Thread(target=_entrenar_en_segundo_plano, daemon=True).start()  # entrena en hilo aparte
 
 class LoginIn(BaseModel):                             # cuerpo JSON de /login
     username: str                                     # nombre de usuario

@@ -27,7 +27,7 @@ export function renderLanded(contenedor) {
       <div class="dos-columnas">
         <div class="tarjeta">                                     <!-- formulario de inputs -->
           ${CAMPOS.map(([id, lbl, val]) => `
-            <div class="campo"><label>${lbl}</label>
+            <div class="campo"><label for="lc-${id}">${lbl}</label>
               <input type="number" id="lc-${id}" value="${val}" min="0" step="any" /></div>`).join('')}
           <button class="boton boton-primario" id="lc-btn" style="width:100%">Calcular Estructura</button>
         </div>

@@ -1,18 +1,14 @@
-PySide6>=6.6.0
-pandas>=2.0.0
-numpy>=1.24.0
-scikit-learn>=1.2.0
-xgboost>=1.7.0
-matplotlib>=3.7.0
-google-genai>=0.1.0
-reportlab>=4.0.0
-python-dotenv>=1.0.0
-PySide6-Fluent-Widgets>=1.0.0
-
-# --- Nuevas dependencias del sidecar Electron (front nuevo) ---
+# Dependencias del sidecar de Rumbo (necesarias para correr la app Electron).
+# Instalar con:  python -m pip install -r requirements.txt
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
 bcrypt>=4.0.0
-# Opcionales: solo necesarias para el Asesor VUCE (RAG legal). El sidecar arranca sin ellas.
-sentence-transformers>=2.2.0
-faiss-cpu>=1.7.4
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.2.0
+reportlab>=4.0.0
+python-dotenv>=1.0.0
+
+# Opcionales / legado (NO se instalan con lo de arriba):
+#   - Asesor VUCE con RAG legal (pesadas):   pip install -r requirements-vuce-rag.txt
+#   - App original en PySide6/Qt (app.py):   pip install -r requirements-legacy-qt.txt

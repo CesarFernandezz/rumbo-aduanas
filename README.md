@@ -36,15 +36,15 @@ Clona el repositorio y, desde la carpeta raíz del proyecto:
 ### 1) Dependencias de Python (backend + sidecar)
 
 ```bash
-python -m pip install "fastapi>=0.110" "uvicorn[standard]>=0.29" "bcrypt>=4.0" pandas numpy scikit-learn reportlab
+python -m pip install -r requirements.txt
 ```
 
-> **Opcional (Asesor VUCE con RAG legal):** el módulo VUCE puede usar `sentence-transformers` y `faiss-cpu` (son pesadas por PyTorch). La app **arranca y funciona sin ellas**; el Asesor VUCE avisa si faltan. Para habilitarlo:
+> **Opcional (Asesor VUCE con RAG legal):** el módulo VUCE puede usar embeddings para buscar en gacetas. Son dependencias pesadas (traen PyTorch) y la app **arranca y funciona sin ellas** (el Asesor devuelve una guía estructurada; avisa si faltan). Para habilitarlo:
 > ```bash
-> python -m pip install sentence-transformers faiss-cpu
+> python -m pip install -r requirements-vuce-rag.txt
 > ```
 >
-> También existe `requirements.txt`, pero incluye dependencias del backend original en Qt (PySide6, etc.) que la versión Electron **no necesita**. Para la app Electron, usa el comando de arriba.
+> **Legado:** para correr la app de escritorio original en PySide6/Qt (`app.py`), instala además `requirements-legacy-qt.txt`. La app Electron no lo necesita.
 
 ### 2) Dependencias del front‑end (Electron)
 
@@ -55,7 +55,9 @@ npm install
 
 ### 3) Configuración (opcional)
 
-Para las funciones de IA (Gemini), crea un archivo `.env` en la raíz con tu propia clave:
+> **Nota:** en su estado actual el Asesor VUCE genera una guía estructurada localmente (no llama a un LLM externo), así que **no necesitas ninguna clave para usar la app**. El archivo `.env` / `GEMINI_API_KEY` solo hace falta si más adelante conectas un modelo de IA generativa.
+
+Si conectas un proveedor de IA, crea un archivo `.env` en la raíz con tu propia clave:
 
 ```env
 GEMINI_API_KEY=tu_clave_aqui

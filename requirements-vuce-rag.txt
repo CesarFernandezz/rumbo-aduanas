@@ -1,0 +1,5 @@
+# OPCIONAL — habilita el RAG legal del Asesor VUCE (busqueda en gacetas con embeddings).
+# Son dependencias pesadas (traen PyTorch). El sidecar arranca y funciona SIN ellas;
+# el Asesor VUCE simplemente avisa si faltan.
+sentence-transformers>=2.2.0
+faiss-cpu>=1.7.4

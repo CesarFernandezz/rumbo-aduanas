@@ -104,6 +104,9 @@ export async function renderInicio(contenedor) {
   document.getElementById('card-landed').onclick = (e) => {                  // abre Landed salvo al mover el slider
     if (e.target.id !== 'mini-slider') router.ir('landed')                   // evita navegar al arrastrar
   }
+  document.getElementById('card-landed').onkeydown = (e) => {                // accesibilidad: activar con teclado (Enter/Espacio)
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.id !== 'mini-slider') { e.preventDefault(); router.ir('landed') }
+  }
   document.getElementById('btn-nueva').onclick = () => router.ir('vuce')     // "Nueva consulta" -> VUCE
 
   // 3) Slider tipo "dimmer": calcula el landed cost con el BACKEND REAL (no una formula falsa del cliente).
