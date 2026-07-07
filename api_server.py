@@ -205,4 +205,8 @@ def dashboard_summary():                              # todos los indicadores sa
     promedio_operador = df.groupby("operador")["dias_reales"].mean().sort_values()  # operadores por rapidez
     resumen["operador_mas_rapido"] = str(promedio_operador.index[0])  # el de menor promedio de dias (real)
     resumen["top_carga"] = str(df["tipo_carga"].value_counts().index[0])  # tipo de carga mas frecuente (real)
+    # Volumen de envios por mes (1-12), rellenando con 0 los meses sin registros. Alimenta el grafico del HERO.
+    conteo_mes = df["mes"].value_counts()             # cuantos envios por numero de mes
+    resumen["por_mes"] = [{"mes": m, "envios": int(conteo_mes.get(m, 0))}  # lista ordenada de enero (1) a diciembre (12)
+                          for m in range(1, 13)]
     return resumen                                    # devuelve el resumen completo con datos reales

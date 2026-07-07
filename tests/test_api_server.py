@@ -68,3 +68,4 @@ def test_dashboard_summary_tiene_kpis():              # el resumen del Inicio de
     assert "dias_transito_promedio" in d                # promedio de dias en transito (real)
     assert "dias_aduana_promedio" in d                  # promedio de dias en aduana (real)
     assert 0 <= d["pct_a_tiempo"] <= 100                # % de puntualidad, en rango valido
+    assert len(d["por_mes"]) == 12                      # volumen por mes: 12 entradas (enero..diciembre)

@@ -2,25 +2,61 @@
 // Estructura: HERO (KPIs reales + mapa) | lista RUTAS/ADUANAS | 3 tarjetas (ETA, Landed, VUCE).
 
 import { api } from '../api.js'                               // datos del sidecar
-import { animarNumero, animarGauge, mostrarToast } from '../motion.js' // animaciones
+import { animarNumero, animarGauge, mostrarToast, movimientoReducido } from '../motion.js' // animaciones
 import { router } from '../router.js'                         // para enlazar a los modulos
 import { iconos } from '../icons.js'                          // iconos SVG (reemplazan emojis)
+
+// Dibuja un grafico de barras REAL: volumen de envios por mes (crecen con animacion suave).
+function dibujarBarrasMes(canvas, datos) {
+  const ctx = canvas.getContext('2d')                         // contexto 2D del lienzo
+  canvas.width = canvas.clientWidth || 700                    // ancho real segun el layout (nitidez 1:1)
+  canvas.height = canvas.clientHeight || 230                  // alto real segun el layout (llena el HERO)
+  const W = canvas.width, H = canvas.height                   // dimensiones de dibujo
+  const meses = ['E', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'] // iniciales de los meses
+  const maxV = Math.max(...datos.map(d => d.envios), 1)       // valor maximo para escalar (evita /0)
+  const padL = 6, padR = 6, padT = 12, padB = 24             // margenes internos
+  const areaW = W - padL - padR, areaH = H - padT - padB      // area util del grafico
+  const paso = areaW / datos.length                          // ancho asignado a cada mes
+  const bw = paso * 0.58                                      // ancho visible de cada barra
+  const dur = movimientoReducido() ? 0 : 850                 // duracion de la animacion (0 si se reduce el motion)
+  const inicio = performance.now()                           // marca de tiempo inicial
+  function frame(ahora) {                                     // dibuja un fotograma de la animacion de crecimiento
+    const p = dur === 0 ? 1 : Math.min(1, (ahora - inicio) / dur) // progreso 0..1
+    const e = 1 - Math.pow(1 - p, 3)                         // easing easeOutCubic (desacelera al final)
+    ctx.clearRect(0, 0, W, H)                                // limpia el lienzo
+    for (let i = 0; i < datos.length; i++) {                 // recorre cada mes
+      const x = padL + i * paso + (paso - bw) / 2            // posicion horizontal de la barra
+      const alturaMax = (datos[i].envios / maxV) * areaH     // altura final segun el volumen
+      const h = alturaMax * e                                // altura animada en este fotograma
+      const y = padT + areaH - h                             // borde superior de la barra
+      const grad = ctx.createLinearGradient(0, y, 0, padT + areaH) // degradado calido vertical
+      grad.addColorStop(0, '#F4C77B'); grad.addColorStop(1, '#F3A87C')
+      ctx.fillStyle = grad                                   // aplica el degradado
+      const r = Math.min(4, bw / 2)                          // radio de las esquinas superiores
+      ctx.beginPath(); ctx.roundRect(x, y, bw, h, [r, r, 0, 0]); ctx.fill() // barra con esquinas redondeadas
+      ctx.fillStyle = '#B9AC9B'; ctx.font = '11px Manrope'; ctx.textAlign = 'center' // estilo de etiqueta
+      ctx.fillText(meses[i], x + bw / 2, H - 7)              // etiqueta del mes bajo la barra
+    }
+    if (p < 1) requestAnimationFrame(frame)                  // continua hasta completar la animacion
+  }
+  requestAnimationFrame(frame)                               // arranca el dibujo
+}
 
 export async function renderInicio(contenedor) {
   // 1) Estructura HTML del dashboard. Las cifras arrancan en 0 y se animan con datos reales al cargar.
   contenedor.innerHTML = `
     <div class="inicio-grid">                                <!-- rejilla principal -->
       <section class="tarjeta hero">                          <!-- panel HERO grande -->
-        <div class="hero-top">                                <!-- fila superior de pills/KPIs -->
-          <span class="pill"><span class="dot"></span> Motor IA activo</span> <!-- indicador de motor activo -->
-          <div class="kpis">                                  <!-- grupo de KPIs (datos reales del CSV) -->
-            <div><div class="kpi-num" id="kpi-hist">0</div><div class="kpi-lbl">Envíos analizados</div></div>
-            <div><div class="kpi-num" id="kpi-eta">0</div><div class="kpi-lbl">ETA prom (días)</div></div>
-            <div><div class="kpi-num" id="kpi-transito">0</div><div class="kpi-lbl">Tránsito prom (días)</div></div>
-            <div><div class="kpi-num" id="kpi-aduana">0</div><div class="kpi-lbl">Aduana prom (días)</div></div>
-          </div>
+        <div class="kpis">                                    <!-- fila de KPIs (datos reales del CSV) -->
+          <div><div class="kpi-num" id="kpi-hist">0</div><div class="kpi-lbl">Envíos analizados</div></div>
+          <div><div class="kpi-num" id="kpi-eta">0</div><div class="kpi-lbl">ETA prom (días)</div></div>
+          <div><div class="kpi-num" id="kpi-transito">0</div><div class="kpi-lbl">Tránsito prom (días)</div></div>
+          <div><div class="kpi-num" id="kpi-aduana">0</div><div class="kpi-lbl">Aduana prom (días)</div></div>
         </div>
-        <div class="hero-mapa" id="hero-mapa"></div>          <!-- zona de "mapa de ruta" (decorativa animada) -->
+        <div class="hero-chart">                              <!-- grafico REAL de volumen mensual -->
+          <div class="kpi-lbl">Volumen de envíos por mes</div>
+          <canvas id="hero-canvas"></canvas>                  <!-- barras dibujadas con datos reales -->
+        </div>
       </section>
 
       <aside class="tarjeta rutas">                           <!-- lista lateral derecha (como "Rooms") -->
@@ -102,6 +138,9 @@ export async function renderInicio(contenedor) {
 
     // Gauge de puntualidad REAL: % de envios cuyo tiempo real quedo dentro del ETA promedio.
     animarGauge(document.getElementById('gauge-vuce'), 50, d.pct_a_tiempo)   // llena el aro con el % real
+
+    // Grafico del HERO: barras reales de volumen de envios por mes.
+    dibujarBarrasMes(document.getElementById('hero-canvas'), d.por_mes)      // dibuja las 12 barras animadas
   } catch (e) {                                                              // si el sidecar fallo
     mostrarToast('No se pudieron cargar los indicadores.', 'error')          // avisa sin romper la vista
   }
