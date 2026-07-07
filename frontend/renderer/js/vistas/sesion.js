@@ -3,17 +3,18 @@
 import { api } from '../api.js'                                   // llamadas al sidecar
 import { estado } from '../estado.js'                             // estado de sesion en memoria
 import { mostrarToast } from '../motion.js'                       // notificaciones
+import { iconos } from '../icons.js'                              // icono SVG de usuario
 
 export function renderSesion(contenedor) {
-  // Texto de estado segun haya o no sesion iniciada.
+  // Texto de estado segun haya o no sesion iniciada (el icono va aparte, no como emoji).
   const estadoTxt = estado.sesion.usuario                        // ¿hay usuario?
-    ? `👤 Conectado como: ${estado.sesion.usuario} [${estado.sesion.rol}]` // conectado
-    : '👤 Modo Invitado (acceso público limitado)'               // invitado
+    ? `Conectado como: ${estado.sesion.usuario} [${estado.sesion.rol}]` // conectado
+    : 'Modo Invitado (acceso público limitado)'                  // invitado
 
   // 1) Maquetacion: dos tarjetas (login y registro).
   contenedor.innerHTML = `
     <div class="modulo">
-      <h1 class="titulo" id="sesion-estado">${estadoTxt}</h1>
+      <h1 class="titulo con-icono"><span class="ico">${iconos.cuenta}</span><span id="sesion-txt">${estadoTxt}</span></h1>
       <div class="dos-columnas">
         <div class="tarjeta">                                     <!-- login -->
           <h3 class="titulo" style="font-size:18px">Ingresar al Sistema</h3>
@@ -41,8 +42,8 @@ export function renderSesion(contenedor) {
       const r = await api.login(user, pass)                       // verifica credenciales
       if (r.ok) {                                                 // acceso concedido
         estado.entrar(user, r.rol)                               // guarda la sesion
-        document.getElementById('sesion-estado').textContent =    // actualiza el encabezado
-          `👤 Conectado como: ${user} [${r.rol}]`
+        document.getElementById('sesion-txt').textContent =       // actualiza el texto (el icono se conserva)
+          `Conectado como: ${user} [${r.rol}]`
         mostrarToast(`¡Bienvenido, ${user}!`)                     // saludo
       } else {                                                   // credenciales invalidas
         mostrarToast('Credenciales incorrectas.', 'error')        // aviso

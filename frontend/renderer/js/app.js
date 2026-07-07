@@ -3,6 +3,7 @@
 import { iniciarFondoVivo, mostrarToast } from './motion.js' // motor de motion
 import { api } from './api.js'                               // llamadas al sidecar
 import { router } from './router.js'                         // navegacion entre vistas
+import { iconos } from './icons.js'                          // iconos SVG (reemplazan emojis)
 import { renderInicio } from './vistas/inicio.js'            // vista Inicio
 import { renderEta } from './vistas/eta.js'                  // vista Predictor ETA
 import { renderVuce } from './vistas/vuce.js'                // vista Asesor VUCE
@@ -23,12 +24,13 @@ router.registrar('sesion', renderSesion)                     // modulo de cuenta
 function construirSidebar() {
   const nav = document.getElementById('sidebar-nav')         // contenedor de navegacion superior
   const pie = document.getElementById('sidebar-pie')         // contenedor inferior (cuenta)
-  // Definicion de los botones: [nombre de vista, emoji-icono, titulo accesible].
+  document.querySelector('.sidebar-marca').innerHTML = iconos.contenedor // isotipo Rumbo en el badge superior
+  // Definicion de los botones: [nombre de vista, clave-de-icono, titulo accesible].
   const items = [                                            // items superiores
-    ['inicio', '▦', 'Inicio'],                               // dashboard
-    ['eta', '⏱', 'Predictor ETA'],                           // prediccion
-    ['vuce', '⚖', 'Asesor VUCE'],                            // asesor legal
-    ['landed', '$', 'Landed Cost'],                          // finanzas
+    ['inicio', 'inicio', 'Inicio'],                          // dashboard
+    ['eta', 'eta', 'Predictor ETA'],                         // prediccion
+    ['vuce', 'vuce', 'Asesor VUCE'],                         // asesor legal
+    ['landed', 'landed', 'Landed Cost'],                     // finanzas
   ]
   nav.innerHTML = ''                                          // limpia por si se reconstruye
   for (const [vista, icono, titulo] of items) {              // crea cada boton
@@ -36,7 +38,7 @@ function construirSidebar() {
     b.className = 'nav-btn'                                   // estilo de navegacion
     b.dataset.vista = vista                                   // asocia el nombre de vista (para resaltar)
     b.title = titulo                                          // tooltip accesible
-    b.textContent = icono                                    // icono visible
+    b.innerHTML = iconos[icono]                               // icono SVG visible (hereda el color del tema)
     b.onclick = () => router.ir(vista)                        // al hacer clic, navega
     nav.appendChild(b)                                        // agrega al sidebar
   }
@@ -45,7 +47,7 @@ function construirSidebar() {
   bc.className = 'nav-btn'                                    // mismo estilo
   bc.dataset.vista = 'sesion'                                 // vista de sesion
   bc.title = 'Cuenta / Acceso'                                // tooltip
-  bc.textContent = '👤'                                       // icono de usuario
+  bc.innerHTML = iconos.cuenta                                // icono SVG de usuario
   bc.onclick = () => router.ir('sesion')                      // navega a sesion
   pie.innerHTML = ''                                          // limpia
   pie.appendChild(bc)                                         // agrega abajo

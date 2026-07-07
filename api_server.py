@@ -14,7 +14,7 @@ from pydantic import BaseModel                        # validacion/tipado de los
 # Ruta absoluta al CSV historico (mismo archivo que usa el backend). __file__ esta en la raiz del proyecto.
 RUTA_CSV = os.path.join(os.path.dirname(__file__), "data", "historico_envios.csv")
 
-app = FastAPI(title="LogiIA Sidecar")                 # instancia principal de la API
+app = FastAPI(title="Rumbo Sidecar")                  # instancia principal de la API
 
 # CORS abierto en localhost: el renderer de Electron carga como file:// y necesita permiso para llamar.
 app.add_middleware(
@@ -185,29 +185,24 @@ def vuce_pdf(datos: VucePdfIn):                       # recibe el dictamen y la 
     generar_pdf_dictamen(datos.regimen, datos.consulta, datos.html, datos.ruta)  # escribe el PDF en disco
     return {"ok": True, "ruta": datos.ruta}           # confirma la ruta guardada
 
-@app.get("/dashboard-summary")                        # KPIs agregados para la pantalla de Inicio
-def dashboard_summary():                              # combina el historico CSV con la tabla embarques
+@app.get("/dashboard-summary")                        # KPIs agregados REALES para la pantalla de Inicio
+def dashboard_summary():                              # todos los indicadores salen del historico real (CSV)
     resumen = {}                                      # acumulador de resultados
-    df = pd.read_csv(RUTA_CSV)                         # carga el historico (siempre hay datos)
-    resumen["registros_historicos"] = int(len(df))    # total de envios historicos registrados
-    resumen["eta_promedio"] = round(float(df["dias_reales"].mean()), 1)  # promedio general de dias reales
-    conteo_aduana = df["aduana_destino"].value_counts()  # cuantos envios por cada aduana
+    df = pd.read_csv(RUTA_CSV)                         # carga el historico completo (miles de envios reales)
+    resumen["registros_historicos"] = int(len(df))    # total de envios historicos analizados
+    prom = float(df["dias_reales"].mean())            # promedio general de dias reales de trayecto
+    resumen["eta_promedio"] = round(prom, 1)          # ETA promedio (dias)
+    resumen["dias_transito_promedio"] = round(float(df["dias_transito_int"].mean()), 1)      # transito promedio
+    resumen["dias_aduana_promedio"] = round(float(df["dias_nacionalizacion"].mean()), 1)     # aduana promedio
+    # Puntualidad real: % de envios cuyo tiempo real quedo dentro (<=) del ETA promedio.
+    resumen["pct_a_tiempo"] = round(float((df["dias_reales"] <= prom).mean() * 100), 1)
+    conteo_aduana = df["aduana_destino"].value_counts()  # cuantos envios por cada aduana (real)
     resumen["por_aduana"] = [{"aduana": str(k), "envios": int(v)}  # serializa la distribucion por aduana
                              for k, v in conteo_aduana.items()]
+    conteo_via = df["via"].value_counts()             # cuantos envios por cada via de transporte (real)
+    resumen["por_via"] = [{"via": str(k), "envios": int(v)}  # serializa la distribucion por via
+                          for k, v in conteo_via.items()]
     promedio_operador = df.groupby("operador")["dias_reales"].mean().sort_values()  # operadores por rapidez
-    resumen["operador_mas_rapido"] = str(promedio_operador.index[0])  # el de menor promedio de dias
-    # Conteos "en vivo" desde la tabla embarques (si esta vacia, quedan en 0).
-    estados = {"En Tránsito": 0, "Aduana": 0, "Entregado": 0, "Demorado": 0}  # estados posibles
-    try:                                              # la tabla podria no existir o estar vacia
-        from src.database import conectar_db          # import perezoso de la conexion
-        conn = conectar_db()                          # abre SQLite
-        cur = conn.cursor()                           # cursor de consulta
-        cur.execute("SELECT estado, COUNT(*) FROM embarques GROUP BY estado")  # agrupa por estado
-        for est, n in cur.fetchall():                 # recorre los resultados
-            if est in estados:                        # solo estados conocidos
-                estados[est] = int(n)                 # asigna el conteo
-        conn.close()                                  # cierra la conexion
-    except Exception:                                 # ante cualquier error de DB
-        pass                                          # dejamos los estados en 0 (no rompe el Inicio)
-    resumen["estados"] = estados                      # agrega los conteos por estado
-    return resumen                                    # devuelve el resumen completo
+    resumen["operador_mas_rapido"] = str(promedio_operador.index[0])  # el de menor promedio de dias (real)
+    resumen["top_carga"] = str(df["tipo_carga"].value_counts().index[0])  # tipo de carga mas frecuente (real)
+    return resumen                                    # devuelve el resumen completo con datos reales

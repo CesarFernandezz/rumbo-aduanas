@@ -1,7 +1,7 @@
 {
-  "name": "logiia-frontend",
+  "name": "rumbo-frontend",
   "version": "1.0.0",
-  "description": "Front-end Electron de LogiIA (dashboard logistico aduanero)",
+  "description": "Front-end Electron de Rumbo (gestion aduanera inteligente)",
   "main": "main.js",
   "scripts": {
     "start": "electron ."

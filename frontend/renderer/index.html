@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />                                    <!-- codificacion -->
   <meta name="viewport" content="width=device-width, initial-scale=1" /> <!-- escala -->
-  <title>LogiIA — Dashboard Logístico</title>                <!-- titulo de la ventana -->
+  <title>Rumbo — Gestión Aduanera Inteligente</title>       <!-- titulo de la ventana -->
   <link rel="stylesheet" href="styles.css" />                <!-- hoja de estilos principal -->
 </head>
 <body>
@@ -12,15 +12,21 @@
   <!-- Splash: se muestra mientras el sidecar entrena el modelo; motion.js lo anima; app.js lo oculta -->
   <div id="splash">
     <div class="splash-glow"></div>                          <!-- halo que respira detras del logo -->
-    <div class="splash-logo">LogiIA</div>                    <!-- marca -->
-    <div class="splash-msg" id="splash-msg">Iniciando motor logístico…</div> <!-- mensaje de estado -->
+    <div class="splash-marca">                                <!-- isotipo (badge ambar) + wordmark -->
+      <span class="splash-badge">                             <!-- badge con degradado ambar (fondo por CSS) -->
+        <!-- Isotipo "Rumbo": contenedor de carga (aduana/comercio), en color oscuro sobre el ambar -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="9" rx="1"/><path d="M8 8v9"/><path d="M12 8v9"/><path d="M16 8v9"/></svg>
+      </span>
+      <span class="splash-logo">Rumbo</span>                  <!-- wordmark de la marca -->
+    </div>
+    <div class="splash-msg" id="splash-msg">Iniciando motor aduanero…</div> <!-- mensaje de estado -->
     <div class="splash-barra"><span></span></div>            <!-- barra indeterminada animada -->
   </div>
 
   <!-- App principal: oculta hasta que el sidecar esta 'listo' -->
   <div id="app" class="oculto">
     <aside id="sidebar">                                     <!-- barra lateral negra con iconos (como la foto) -->
-      <div class="sidebar-marca">LI</div>                    <!-- logo compacto arriba -->
+      <div class="sidebar-marca"></div>                      <!-- isotipo compacto (lo inyecta app.js desde icons.js) -->
       <nav id="sidebar-nav"></nav>                           <!-- botones de navegacion (los inyecta app.js) -->
       <div class="sidebar-pie" id="sidebar-pie"></div>       <!-- seccion inferior: Cuenta/Sesion -->
     </aside>
