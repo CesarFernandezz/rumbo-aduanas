@@ -8,6 +8,7 @@ numpy>=1.24.0
 scikit-learn>=1.2.0
 reportlab>=4.0.0
 python-dotenv>=1.0.0
+google-genai>=1.0.0          # Asesor VUCE con IA real (Gemini). Liviano, NO trae PyTorch. Necesita GEMINI_API_KEY en .env
 
 # Opcionales / legado (NO se instalan con lo de arriba):
 #   - Asesor VUCE con RAG legal (pesadas):   pip install -r requirements-vuce-rag.txt
