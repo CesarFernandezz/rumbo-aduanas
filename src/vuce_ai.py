@@ -1,7 +1,10 @@
 import os
 import pickle
 import numpy as np
-from sentence_transformers import SentenceTransformer
+# Nota: sentence_transformers (que arrastra PyTorch) NO se importa aqui a proposito.
+# Es una dependencia OPCIONAL y pesada; se importa de forma perezosa dentro de
+# buscar_contexto_legal() solo si hay un indice de gacetas que consultar. Asi el
+# Asesor VUCE arranca en cualquier PC aunque torch no este instalado o su DLL falle.
 
 RUTA_INDICE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'indice_legal.pkl')
 
@@ -10,11 +13,14 @@ def buscar_contexto_legal(consulta, top_k=3):
     if not os.path.exists(RUTA_INDICE):
         return ""
     try:
+        # Import perezoso: trae PyTorch. Si no esta instalado o su DLL falla
+        # (p.ej. [WinError 1114] al cargar c10.dll), caemos al except y devolvemos "".
+        from sentence_transformers import SentenceTransformer
         with open(RUTA_INDICE, 'rb') as f:
             data = pickle.load(f)
         indice_faiss = data["indice"]
         fragmentos = data["fragmentos"]
-        
+
         model = SentenceTransformer('all-MiniLM-L6-v2')
         vector_consulta = model.encode([consulta]).astype('float32')
         _, indices = indice_faiss.search(vector_consulta, top_k)
